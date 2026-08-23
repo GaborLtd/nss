@@ -108,6 +108,10 @@ nss office-mini
 ```bash
 nssd list
 nssd close --session-id <session-id>
+
+# 也可以透過一般 SSH 執行遠端管理指令
+ssh -T office-mini nssd list
+ssh -T office-mini nssd close --session-id <session-id>
 ```
 
 `nssd close` 會結束對應 PTY 與 child process。跨裝置 takeover 目前尚未開放，避免兩個 terminal 同時寫入同一個 shell。

@@ -38,6 +38,9 @@ N bytes  payload
 | `DATA` | terminal input/output | raw bytes |
 | `RESIZE` | terminal resize | rows/cols，各 2 bytes |
 | `CLOSE` | 明確關閉 session | empty |
+| `ADMIN_LIST` | 查詢 session metadata | empty |
+| `ADMIN_OK` | admin 成功或 session list | JSON 或 empty |
+| `ADMIN_CLOSE` | 強制關閉指定 session | JSON |
 
 ## 設計原則
 
