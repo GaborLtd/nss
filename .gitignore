@@ -1,5 +1,5 @@
 .cache/
 dist/
 coverage.out
-nss
-nssd
+/nss
+/nssd

@@ -1,0 +1,241 @@
+package main
+
+import (
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+	"time"
+
+	"github.com/gaborltd/nss/internal/protocol"
+	"github.com/gaborltd/nss/internal/runtimepath"
+	"github.com/gaborltd/nss/internal/session"
+	"github.com/gaborltd/nss/internal/version"
+)
+
+func main() {
+	if len(os.Args) < 2 {
+		usage()
+		os.Exit(2)
+	}
+	switch os.Args[1] {
+	case "serve":
+		if err := runServe(os.Args[2:]); err != nil {
+			fatal(err)
+		}
+	case "attach":
+		if err := runAttach(os.Args[2:]); err != nil {
+			fatal(err)
+		}
+	case "--version", "version":
+		fmt.Println(version.String("nssd"))
+	default:
+		usage()
+		os.Exit(2)
+	}
+}
+
+func runServe(args []string) error {
+	flags := flag.NewFlagSet("nssd serve", flag.ContinueOnError)
+	defaultSocket, err := runtimepath.SocketPath()
+	if err != nil {
+		return err
+	}
+	defaultState, err := runtimepath.StateDir()
+	if err != nil {
+		return err
+	}
+	socketPath := flags.String("socket", defaultSocket, "Unix socket path")
+	stateDir := flags.String("state-dir", defaultState, "session state directory")
+	shell := flags.String("shell", "", "default shell path")
+	maxSpoolMB := flags.Int64("max-spool-mb", 4, "maximum output spool per session")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if *maxSpoolMB < 0 {
+		return errors.New("max-spool-mb cannot be negative")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(*socketPath), 0700); err != nil {
+		return fmt.Errorf("create socket directory: %w", err)
+	}
+	if err := removeStaleSocket(*socketPath); err != nil {
+		return err
+	}
+	listener, err := net.Listen("unix", *socketPath)
+	if err != nil {
+		return fmt.Errorf("listen on %s: %w", *socketPath, err)
+	}
+	defer func() {
+		_ = listener.Close()
+		_ = os.Remove(*socketPath)
+	}()
+	if err := os.Chmod(*socketPath, 0600); err != nil {
+		return fmt.Errorf("protect socket: %w", err)
+	}
+
+	manager, err := session.NewManager(session.Config{
+		StateDir:      *stateDir,
+		DefaultShell:  *shell,
+		MaxSpoolBytes: *maxSpoolMB << 20,
+	})
+	if err != nil {
+		return err
+	}
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(stop)
+	go func() {
+		<-stop
+		_ = listener.Close()
+		manager.CloseAll()
+	}()
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				return nil
+			}
+			return fmt.Errorf("accept attach connection: %w", err)
+		}
+		go handleAttach(conn, manager)
+	}
+}
+
+func handleAttach(conn net.Conn, manager *session.Manager) {
+	defer conn.Close()
+	first, err := protocol.Read(conn)
+	if err != nil {
+		return
+	}
+	req, err := protocol.DecodeOpen(first)
+	if err != nil {
+		_ = protocol.Write(conn, protocol.Frame{Type: protocol.TypeOpenError, Payload: []byte(err.Error())})
+		return
+	}
+	attachment, replay, err := manager.Attach(req)
+	if err != nil {
+		_ = protocol.Write(conn, protocol.Frame{Type: protocol.TypeOpenError, Payload: []byte(err.Error())})
+		return
+	}
+	defer attachment.Detach()
+
+	response, err := protocol.EncodeOpenResponse(protocol.OpenResponse{
+		SessionID: req.SessionID,
+		Replayed:  int64(len(replay)),
+	})
+	if err != nil || protocol.Write(conn, response) != nil {
+		return
+	}
+	for len(replay) > 0 {
+		n := len(replay)
+		if n > protocol.MaxFrameSize {
+			n = protocol.MaxFrameSize
+		}
+		if err := protocol.Write(conn, protocol.Frame{Type: protocol.TypeData, Payload: replay[:n]}); err != nil {
+			return
+		}
+		replay = replay[n:]
+	}
+
+	go func() {
+		for frame := range attachment.Frames() {
+			if err := protocol.Write(conn, frame); err != nil {
+				_ = conn.Close()
+				return
+			}
+		}
+	}()
+
+	for {
+		frame, err := protocol.Read(conn)
+		if err != nil {
+			return
+		}
+		switch frame.Type {
+		case protocol.TypeData:
+			if err := attachment.WriteInput(frame.Payload); err != nil {
+				return
+			}
+		case protocol.TypeResize:
+			if len(frame.Payload) != 4 {
+				return
+			}
+			rows := uint16(frame.Payload[0])<<8 | uint16(frame.Payload[1])
+			cols := uint16(frame.Payload[2])<<8 | uint16(frame.Payload[3])
+			if err := attachment.Resize(rows, cols); err != nil {
+				return
+			}
+		case protocol.TypeClose:
+			attachment.CloseSession()
+			return
+		default:
+			return
+		}
+	}
+}
+
+func runAttach(args []string) error {
+	flags := flag.NewFlagSet("nssd attach", flag.ContinueOnError)
+	defaultSocket, err := runtimepath.SocketPath()
+	if err != nil {
+		return err
+	}
+	socketPath := flags.String("socket", defaultSocket, "Unix socket path")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	conn, err := net.Dial("unix", *socketPath)
+	if err != nil {
+		return fmt.Errorf("connect to nssd: %w", err)
+	}
+	defer conn.Close()
+
+	errCh := make(chan error, 2)
+	go func() {
+		_, copyErr := io.Copy(conn, os.Stdin)
+		if unixConn, ok := conn.(*net.UnixConn); ok {
+			_ = unixConn.CloseWrite()
+		}
+		errCh <- copyErr
+	}()
+	go func() {
+		_, copyErr := io.Copy(os.Stdout, conn)
+		errCh <- copyErr
+	}()
+	return <-errCh
+}
+
+func removeStaleSocket(path string) error {
+	info, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSocket == 0 {
+		return fmt.Errorf("refusing to remove non-socket path: %s", path)
+	}
+	probe, err := net.DialTimeout("unix", path, 100*time.Millisecond)
+	if err == nil {
+		_ = probe.Close()
+		return fmt.Errorf("nssd socket is already in use: %s", path)
+	}
+	return os.Remove(path)
+}
+
+func usage() {
+	fmt.Fprintln(os.Stderr, "usage: nssd serve|attach|--version")
+}
+
+func fatal(err error) {
+	fmt.Fprintln(os.Stderr, "nssd:", err)
+	os.Exit(1)
+}
