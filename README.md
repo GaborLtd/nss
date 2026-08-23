@@ -30,15 +30,22 @@ Terminal Tab B
 
 ## 目前狀態
 
-目前 repository 是 project bootstrap，已建立：
+目前 repository 已完成第一個可工作的 MVP vertical slice，並已建立：
 
 - 專案工程規範與文件入口。
-- Go module 與 `nss` / `nssd` 最小 executable scaffold。
+- Go module 與 `nss` / `nssd` executable。
 - GitHub Actions CI。
 - GitHub tag release 與 GoReleaser 設定。
 - checksum 驗證的 installer scaffold。
 
-核心 PTY、session protocol 與 reconnect 行為尚未實作。
+目前已實作：
+
+- `nssd serve`：管理 remote PTY 與 shell。
+- `nssd attach`：透過 SSH stdin/stdout 轉送 attach protocol。
+- `nss <host>`：使用系統 OpenSSH、自動 reconnect、PTY input/output 與 resize。
+- 斷線期間的 bounded disk spool 與 reconnect replay。
+
+仍待完成：session persistence across daemon restart、完整管理 CLI、idle cleanup 與 production deployment hardening。
 
 ## 開發
 
@@ -55,6 +62,7 @@ go build ./cmd/nss ./cmd/nssd
 - [架構](docs/architecture.md)
 - [Session lifecycle](docs/lifecycle.md)
 - [Protocol 初稿](docs/protocol.md)
+- [Server deployment](docs/operations.md)
 - [測試與 release process](docs/testing-and-release.md)
 
 ## 安裝方向

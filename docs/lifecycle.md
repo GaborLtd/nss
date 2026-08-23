@@ -69,6 +69,8 @@ nss close office-mini <session-id>
 
 `takeover` 必須明確操作。成功後舊 attachment 應收到可辨識的 `taken over` 狀態，而不是靜默地與新 client 互相搶輸入。
 
+上述管理 CLI 屬於下一階段；目前 MVP 只提供單一 active attachment 與明確的 `CLOSE` protocol frame，尚未提供 list/takeover/close 的完整 admin control plane。
+
 ## Crash 與重啟
 
 - `nss` crash：remote session 保持 detached，直到 reconnect、明確 attach 或 cleanup。

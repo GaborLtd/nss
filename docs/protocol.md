@@ -16,6 +16,29 @@ nss → RESIZE(rows, cols)
 nss → CLOSE 或 transport EOF
 ```
 
+## Framing
+
+每個 frame 使用固定 5-byte header：
+
+```text
+1 byte   type
+4 bytes  payload length（big-endian uint32）
+N bytes  payload
+```
+
+單一 frame 的 payload 上限為 16 MiB。PTY output 使用 `DATA` frame；control payload 使用 JSON 或固定長度 binary payload。
+
+目前 frame type：
+
+| Type | 用途 | Payload |
+|---|---|---|
+| `OPEN` | 建立或重新 attach session | JSON |
+| `OPEN_OK` | attach 成功 | JSON |
+| `OPEN_ERROR` | attach 失敗 | UTF-8 error message |
+| `DATA` | terminal input/output | raw bytes |
+| `RESIZE` | terminal resize | rows/cols，各 2 bytes |
+| `CLOSE` | 明確關閉 session | empty |
+
 ## 設計原則
 
 - protocol 必須有 version。
@@ -25,12 +48,10 @@ nss → CLOSE 或 transport EOF
 - reconnect 必須是 idempotent：同一 client retry 不應建立多個 PTY。
 - server 必須能回報 replay gap，不能假裝 spool 保存了所有 output。
 
-## 尚未決定的項目
+## 後續 protocol revision
 
-以下項目在實作前必須形成 ADR 或 protocol revision：
+以下項目在 production hardening 前必須形成 ADR 或 protocol revision：
 
-- binary framing 或 sideband channel。
-- PTY bytes 與 control frames 的 multiplexing。
 - session secret 的傳遞與 rotation。
 - replay spool 的 offset/sequence number。
 - terminal resize race condition。

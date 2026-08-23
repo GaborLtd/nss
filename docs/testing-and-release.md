@@ -73,6 +73,16 @@ vMAJOR.MINOR.PATCH
 
 8. 初期可使用 GitHub raw URL；有正式網域後再將 `/nss_install.sh` 指向同一支 script。
 
+## Manual reconnect validation
+
+在測試 server 上啟動 `nssd serve`，並確認遠端使用者的 `nssd` 位於 SSH login shell 的 `PATH`。使用原生 terminal 執行：
+
+```bash
+nss office-mini
+```
+
+執行一個不會立即結束的工作，例如 `sleep 120`，暫時中斷 laptop 網路，確認 tab 保持開啟；恢復網路後應自動回到同一個 shell。測試期間不得輸入會改變資料的指令，並應確認斷線期間輸入沒有被重送。
+
 GitHub Actions release job 只在 tag build 通過後執行，並使用最小的 `contents: write` permission 建立 release。GitHub Actions 的 token permission 應明確宣告，不依賴 repository 預設值。
 
 ## Installer contract
