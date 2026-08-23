@@ -151,6 +151,17 @@ func (m *Manager) List() []Info {
 	return items
 }
 
+func (m *Manager) Close(id string) error {
+	m.mu.Lock()
+	s := m.sessions[id]
+	m.mu.Unlock()
+	if s == nil {
+		return ErrSessionNotFound
+	}
+	s.close()
+	return nil
+}
+
 func (m *Manager) newSession(req protocol.OpenRequest) (*Session, error) {
 	shell := req.Shell
 	if shell == "" {

@@ -101,9 +101,20 @@ ssh -T office-mini nssd attach
 nss office-mini
 ```
 
+## Session 管理
+
+管理指令透過同一個 Unix socket 執行，只有該 Unix user 可以使用：
+
+```bash
+nssd list
+nssd close --session-id <session-id>
+```
+
+`nssd close` 會結束對應 PTY 與 child process。跨裝置 takeover 目前尚未開放，避免兩個 terminal 同時寫入同一個 shell。
+
 ## 目前限制
 
 - daemon restart 後目前不承諾恢復既有 PTY。
-- idle cleanup、session list、takeover 與 admin close 尚未完成。
+- idle cleanup 與跨裝置 takeover 尚未完成。
 - spool 是有限 replay window，不保存無限 terminal history。
 - `nss` 預設不保存斷線期間的 raw keyboard input。

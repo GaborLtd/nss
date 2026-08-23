@@ -70,3 +70,57 @@ func TestHandleAttachRoundTrip(t *testing.T) {
 		t.Fatalf("output = %q, expected handler marker", output.String())
 	}
 }
+
+func TestHandleAdminListAndClose(t *testing.T) {
+	m, err := session.NewManager(session.Config{StateDir: t.TempDir(), DefaultShell: "/bin/sh"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.CloseAll()
+	attachment, _, err := m.Attach(protocol.OpenRequest{SessionID: "admin-session", Secret: "secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer attachment.Detach()
+
+	serverConn, clientConn := net.Pipe()
+	go handleAttach(serverConn, m)
+	_ = clientConn.SetDeadline(time.Now().Add(3 * time.Second))
+	if err := protocol.Write(clientConn, protocol.Frame{Type: protocol.TypeAdminList}); err != nil {
+		t.Fatal(err)
+	}
+	listFrame, err := protocol.Read(clientConn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := protocol.DecodeSessionInfo(listFrame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].SessionID != "admin-session" || !items[0].Attached {
+		t.Fatalf("admin list = %#v", items)
+	}
+	_ = clientConn.Close()
+
+	serverConn, clientConn = net.Pipe()
+	go handleAttach(serverConn, m)
+	_ = clientConn.SetDeadline(time.Now().Add(3 * time.Second))
+	closeFrame, err := protocol.EncodeAdminClose(protocol.AdminCloseRequest{SessionID: "admin-session"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := protocol.Write(clientConn, closeFrame); err != nil {
+		t.Fatal(err)
+	}
+	result, err := protocol.Read(clientConn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Type != protocol.TypeAdminOK {
+		t.Fatalf("admin close response type = %d, want %d", result.Type, protocol.TypeAdminOK)
+	}
+	_ = clientConn.Close()
+	if len(m.List()) != 0 {
+		t.Fatalf("sessions after admin close = %#v, want empty", m.List())
+	}
+}

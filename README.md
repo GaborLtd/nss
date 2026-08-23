@@ -45,7 +45,7 @@ Terminal Tab B
 - `nss <host>`：使用系統 OpenSSH、自動 reconnect、PTY input/output 與 resize。
 - 斷線期間的 bounded disk spool 與 reconnect replay。
 
-仍待完成：session persistence across daemon restart、完整管理 CLI、idle cleanup 與 production deployment hardening。
+仍待完成：session persistence across daemon restart、takeover、idle cleanup 與 production deployment hardening。
 
 ## 開發
 

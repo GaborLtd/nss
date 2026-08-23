@@ -17,12 +17,15 @@ const (
 type Type byte
 
 const (
-	TypeOpen      Type = 1
-	TypeOpenOK    Type = 2
-	TypeOpenError Type = 3
-	TypeData      Type = 4
-	TypeResize    Type = 5
-	TypeClose     Type = 6
+	TypeOpen       Type = 1
+	TypeOpenOK     Type = 2
+	TypeOpenError  Type = 3
+	TypeData       Type = 4
+	TypeResize     Type = 5
+	TypeClose      Type = 6
+	TypeAdminList  Type = 7
+	TypeAdminOK    Type = 8
+	TypeAdminClose Type = 9
 )
 
 var ErrFrameTooLarge = errors.New("protocol frame too large")
@@ -43,6 +46,53 @@ type OpenRequest struct {
 type OpenResponse struct {
 	SessionID string `json:"session_id"`
 	Replayed  int64  `json:"replayed_bytes"`
+}
+
+type AdminCloseRequest struct {
+	SessionID string `json:"session_id"`
+}
+
+type SessionInfo struct {
+	SessionID string `json:"session_id"`
+	Attached  bool   `json:"attached"`
+}
+
+func EncodeAdminClose(req AdminCloseRequest) (Frame, error) {
+	payload, err := json.Marshal(req)
+	if err != nil {
+		return Frame{}, fmt.Errorf("encode admin close request: %w", err)
+	}
+	return Frame{Type: TypeAdminClose, Payload: payload}, nil
+}
+
+func DecodeAdminClose(frame Frame) (AdminCloseRequest, error) {
+	if frame.Type != TypeAdminClose {
+		return AdminCloseRequest{}, fmt.Errorf("expected admin-close frame, got %d", frame.Type)
+	}
+	var req AdminCloseRequest
+	if err := json.Unmarshal(frame.Payload, &req); err != nil {
+		return AdminCloseRequest{}, fmt.Errorf("decode admin close request: %w", err)
+	}
+	return req, nil
+}
+
+func EncodeSessionInfo(items []SessionInfo) (Frame, error) {
+	payload, err := json.Marshal(items)
+	if err != nil {
+		return Frame{}, fmt.Errorf("encode session list: %w", err)
+	}
+	return Frame{Type: TypeAdminOK, Payload: payload}, nil
+}
+
+func DecodeSessionInfo(frame Frame) ([]SessionInfo, error) {
+	if frame.Type != TypeAdminOK {
+		return nil, fmt.Errorf("expected admin-ok frame, got %d", frame.Type)
+	}
+	var items []SessionInfo
+	if err := json.Unmarshal(frame.Payload, &items); err != nil {
+		return nil, fmt.Errorf("decode session list: %w", err)
+	}
+	return items, nil
 }
 
 func EncodeOpen(req OpenRequest) (Frame, error) {

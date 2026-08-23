@@ -32,6 +32,14 @@ func main() {
 		if err := runAttach(os.Args[2:]); err != nil {
 			fatal(err)
 		}
+	case "list":
+		if err := runAdminList(os.Args[2:]); err != nil {
+			fatal(err)
+		}
+	case "close":
+		if err := runAdminClose(os.Args[2:]); err != nil {
+			fatal(err)
+		}
 	case "--version", "version":
 		fmt.Println(version.String("nssd"))
 	default:
@@ -114,6 +122,17 @@ func handleAttach(conn net.Conn, manager *session.Manager) {
 	if err != nil {
 		return
 	}
+	switch first.Type {
+	case protocol.TypeOpen:
+		handleOpen(conn, manager, first)
+	case protocol.TypeAdminList:
+		handleAdminList(conn, manager)
+	case protocol.TypeAdminClose:
+		handleAdminClose(conn, manager, first)
+	}
+}
+
+func handleOpen(conn net.Conn, manager *session.Manager, first protocol.Frame) {
 	req, err := protocol.DecodeOpen(first)
 	if err != nil {
 		_ = protocol.Write(conn, protocol.Frame{Type: protocol.TypeOpenError, Payload: []byte(err.Error())})
@@ -181,6 +200,35 @@ func handleAttach(conn net.Conn, manager *session.Manager) {
 	}
 }
 
+func handleAdminList(conn net.Conn, manager *session.Manager) {
+	items := manager.List()
+	protocolItems := make([]protocol.SessionInfo, 0, len(items))
+	for _, item := range items {
+		protocolItems = append(protocolItems, protocol.SessionInfo{
+			SessionID: item.ID,
+			Attached:  item.Attached,
+		})
+	}
+	frame, err := protocol.EncodeSessionInfo(protocolItems)
+	if err != nil {
+		return
+	}
+	_ = protocol.Write(conn, frame)
+}
+
+func handleAdminClose(conn net.Conn, manager *session.Manager, first protocol.Frame) {
+	req, err := protocol.DecodeAdminClose(first)
+	if err != nil {
+		_ = protocol.Write(conn, protocol.Frame{Type: protocol.TypeOpenError, Payload: []byte(err.Error())})
+		return
+	}
+	if err := manager.Close(req.SessionID); err != nil {
+		_ = protocol.Write(conn, protocol.Frame{Type: protocol.TypeOpenError, Payload: []byte(err.Error())})
+		return
+	}
+	_ = protocol.Write(conn, protocol.Frame{Type: protocol.TypeAdminOK})
+}
+
 func runAttach(args []string) error {
 	flags := flag.NewFlagSet("nssd attach", flag.ContinueOnError)
 	defaultSocket, err := runtimepath.SocketPath()
@@ -212,6 +260,89 @@ func runAttach(args []string) error {
 	return <-errCh
 }
 
+func runAdminList(args []string) error {
+	conn, err := dialAdmin("nssd list", args)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if err := protocol.Write(conn, protocol.Frame{Type: protocol.TypeAdminList}); err != nil {
+		return err
+	}
+	frame, err := protocol.Read(conn)
+	if err != nil {
+		return err
+	}
+	if frame.Type == protocol.TypeOpenError {
+		return errors.New(string(frame.Payload))
+	}
+	items, err := protocol.DecodeSessionInfo(frame)
+	if err != nil {
+		return err
+	}
+	fmt.Println("SESSION_ID\tATTACHED")
+	for _, item := range items {
+		fmt.Printf("%s\t%t\n", item.SessionID, item.Attached)
+	}
+	return nil
+}
+
+func runAdminClose(args []string) error {
+	flags := flag.NewFlagSet("nssd close", flag.ContinueOnError)
+	defaultSocket, err := runtimepath.SocketPath()
+	if err != nil {
+		return err
+	}
+	socketPath := flags.String("socket", defaultSocket, "Unix socket path")
+	sessionID := flags.String("session-id", "", "session ID to close")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if *sessionID == "" {
+		return errors.New("--session-id is required")
+	}
+	conn, err := net.Dial("unix", *socketPath)
+	if err != nil {
+		return fmt.Errorf("connect to nssd: %w", err)
+	}
+	defer conn.Close()
+	request, err := protocol.EncodeAdminClose(protocol.AdminCloseRequest{SessionID: *sessionID})
+	if err != nil {
+		return err
+	}
+	if err := protocol.Write(conn, request); err != nil {
+		return err
+	}
+	frame, err := protocol.Read(conn)
+	if err != nil {
+		return err
+	}
+	if frame.Type == protocol.TypeOpenError {
+		return errors.New(string(frame.Payload))
+	}
+	if frame.Type != protocol.TypeAdminOK {
+		return fmt.Errorf("unexpected admin response type: %d", frame.Type)
+	}
+	return nil
+}
+
+func dialAdmin(name string, args []string) (net.Conn, error) {
+	flags := flag.NewFlagSet(name, flag.ContinueOnError)
+	defaultSocket, err := runtimepath.SocketPath()
+	if err != nil {
+		return nil, err
+	}
+	socketPath := flags.String("socket", defaultSocket, "Unix socket path")
+	if err := flags.Parse(args); err != nil {
+		return nil, err
+	}
+	conn, err := net.Dial("unix", *socketPath)
+	if err != nil {
+		return nil, fmt.Errorf("connect to nssd: %w", err)
+	}
+	return conn, nil
+}
+
 func removeStaleSocket(path string) error {
 	info, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
@@ -232,7 +363,7 @@ func removeStaleSocket(path string) error {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: nssd serve|attach|--version")
+	fmt.Fprintln(os.Stderr, "usage: nssd serve|attach|list|close|--version")
 }
 
 func fatal(err error) {
