@@ -1,0 +1,63 @@
+version: 2
+
+project_name: nss
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: nss
+    main: ./cmd/nss
+    binary: nss
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/gaborltd/nss/internal/version.Version={{ .Version }}
+      - -X github.com/gaborltd/nss/internal/version.Commit={{ .Commit }}
+      - -X github.com/gaborltd/nss/internal/version.Date={{ .Date }}
+
+  - id: nssd
+    main: ./cmd/nssd
+    binary: nssd
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/gaborltd/nss/internal/version.Version={{ .Version }}
+      - -X github.com/gaborltd/nss/internal/version.Commit={{ .Commit }}
+      - -X github.com/gaborltd/nss/internal/version.Date={{ .Date }}
+
+archives:
+  - id: default
+    ids:
+      - nss
+      - nssd
+    formats:
+      - tar.gz
+    name_template: "nss_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    wrap_in_directory: true
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
