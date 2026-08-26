@@ -15,6 +15,7 @@ import (
 
 	"github.com/gaborltd/nss/internal/protocol"
 	"github.com/gaborltd/nss/internal/runtimepath"
+	servicemanager "github.com/gaborltd/nss/internal/service"
 	"github.com/gaborltd/nss/internal/session"
 	updater "github.com/gaborltd/nss/internal/update"
 	"github.com/gaborltd/nss/internal/version"
@@ -46,12 +47,54 @@ func main() {
 		if err := runUpdate(os.Args[2:], "nssd"); err != nil {
 			fatal(err)
 		}
+	case "service":
+		if err := runService(os.Args[2:]); err != nil {
+			fatal(err)
+		}
 	case "--version", "version":
 		fmt.Println(version.String("nssd"))
 	default:
 		usage()
 		os.Exit(2)
 	}
+}
+
+func runService(args []string) error {
+	if len(args) != 1 {
+		return errors.New("usage: nssd service install|status|restart|uninstall")
+	}
+	executablePath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("取得 nssd executable path 失敗: %w", err)
+	}
+	config := servicemanager.Config{ExecutablePath: executablePath}
+	var result servicemanager.Status
+	switch args[0] {
+	case "install":
+		result, err = servicemanager.Install(config)
+	case "status":
+		result, err = servicemanager.StatusOf(config)
+	case "restart":
+		result, err = servicemanager.Restart(config)
+	case "uninstall":
+		result, err = servicemanager.Uninstall(config)
+	default:
+		return errors.New("usage: nssd service install|status|restart|uninstall")
+	}
+	if err != nil {
+		return err
+	}
+	state := "not-installed"
+	if result.Installed {
+		state = "installed"
+		if result.Active {
+			state = "active"
+		} else {
+			state = "inactive"
+		}
+	}
+	fmt.Printf("nssd service: %s; unit=%s\n", state, result.UnitPath)
+	return nil
 }
 
 func runUpdate(args []string, binaryName string) error {
@@ -399,7 +442,7 @@ func removeStaleSocket(path string) error {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: nssd serve|attach|list|close|update|--version")
+	fmt.Fprintln(os.Stderr, "usage: nssd serve|attach|list|close|update|service|--version")
 }
 
 func fatal(err error) {

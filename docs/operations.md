@@ -27,6 +27,27 @@ nssd serve \
 
 `nssd` 不應該以 root 執行。socket 與 session state 只應由該 Unix user 存取。
 
+## Service 管理
+
+不需要手動撰寫 plist 或 systemd unit。使用目前登入的 Unix user 執行：
+
+```bash
+nssd service install
+nssd service status
+nssd service restart
+nssd service uninstall
+```
+
+`install` 會依作業系統產生並註冊 user-level service：macOS 使用 LaunchAgent，Linux 使用 systemd user service。`status` 會顯示 `active`、`inactive` 或 `not-installed`，以及實際 service file 路徑。這些指令不使用 root，也不會管理其他 Unix user 的 daemon。
+
+Linux remote server 若需要在 logout 後仍維持 user service，可另外啟用 user lingering：
+
+```bash
+loginctl enable-linger "$USER"
+```
+
+Windows service backend 尚未支援；目前 release 的 daemon service 管理範圍是 macOS 與 Linux。
+
 成功啟動後會在 stderr 顯示類似以下的 ready 訊息，並持續以前景程序執行：
 
 ```text
@@ -49,7 +70,9 @@ SESSION_ID	ATTACHED
 
 ## macOS launchd
 
-可建立 `~/Library/LaunchAgents/com.gaborltd.nssd.plist`。將 `/Users/developer/.local/bin/nssd` 替換成實際路徑：
+`nssd service install` 會產生 `~/Library/LaunchAgents/com.gaborltd.nssd.plist`，內容使用目前 `nssd` 的 absolute path，並將 stdout/stderr 寫入 `~/Library/Logs/nss/`。不建議手動修改 generated plist；若要重新產生，重新執行 `nssd service install`。
+
+需要手動檢查時，plist 結構如下：
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -84,7 +107,7 @@ launchctl kickstart -k gui/$(id -u)/com.gaborltd.nssd
 
 ## Linux systemd user service
 
-建立 `~/.config/systemd/user/nssd.service`：
+`nssd service install` 會產生 `~/.config/systemd/user/nssd.service`。需要手動檢查時，unit 結構如下：
 
 ```ini
 [Unit]
@@ -105,6 +128,8 @@ WantedBy=default.target
 systemctl --user daemon-reload
 systemctl --user enable --now nssd.service
 ```
+
+正常情況下不需要手動執行上述 `systemctl` 指令；`nssd service install` 會自動執行 daemon-reload、enable 與 start。
 
 ## SSH smoke test
 

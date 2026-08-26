@@ -6,6 +6,7 @@
 
 - 新增 `nss update` 與 `nssd update`，支援 checksum 驗證後更新目前 binary。
 - update 使用 atomic replace，checksum 或 archive 驗證失敗時不會取代既有 binary。
+- 新增 `nssd service install|status|restart|uninstall`，自動管理 macOS LaunchAgent 與 Linux systemd user service。
 
 ## [0.1.4] - 2026-08-26
 

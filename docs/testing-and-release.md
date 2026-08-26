@@ -83,6 +83,21 @@ nss office-mini
 
 執行一個不會立即結束的工作，例如 `sleep 120`，暫時中斷 laptop 網路，確認 tab 保持開啟；恢復網路後應自動回到同一個 shell。測試期間不得輸入會改變資料的指令，並應確認斷線期間輸入沒有被重送。
 
+### Service registration manual test
+
+在 macOS 或 Linux 的 temporary user environment 執行：
+
+```bash
+nssd service status
+nssd service install
+nssd service status
+nssd service restart
+nssd service uninstall
+nssd service status
+```
+
+確認 install 後 service file 使用 absolute `nssd` path，status 可回報 active，uninstall 後回報 not-installed。測試不得使用 root，也不得刪除非 nss 產生的 service file。
+
 GitHub Actions release job 只在 tag build 通過後執行，並使用最小的 `contents: write` permission 建立 release。GitHub Actions 的 token permission 應明確宣告，不依賴 repository 預設值。
 
 ## Installer contract
