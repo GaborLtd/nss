@@ -95,6 +95,7 @@ installer 必須：
 - 允許 `NSS_INSTALL_DIR` 覆寫。
 - 允許 `NSS_VERSION` 安裝指定版本。
 - 允許 `NSS_REPOSITORY` 指定 GitHub repository。
+- 未設定 `NSS_VERSION` 時，透過 GitHub Releases redirect 解析最新版本，不依賴 Releases API。
 - 下載後驗證 SHA-256。
 - 不使用 root，不自動修改 shell profile。
 - 安裝完成後提示使用者確認 PATH。

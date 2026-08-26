@@ -33,10 +33,15 @@ case "$arch" in
 esac
 
 if [ "$version" = "latest" ]; then
-	tag=$(curl -fsSL -H 'Accept: application/vnd.github+json' \
-		"https://api.github.com/repos/$repository/releases/latest" |
-		awk -F'"' '/"tag_name"[[:space:]]*:/ { print $4; exit }')
-	[ -n "$tag" ] || fail "無法取得最新 release tag"
+	latest_url=$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+		"https://github.com/$repository/releases/latest") ||
+		fail "無法取得最新 release"
+	tag=${latest_url#*/releases/tag/}
+	tag=${tag%%[/?#]*}
+	case "$tag" in
+		v[0-9]*.[0-9]*.[0-9]*) ;;
+		*) fail "無法從 release URL 解析版本：$latest_url" ;;
+	esac
 else
 	tag=$version
 fi
