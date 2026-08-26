@@ -46,12 +46,7 @@ case "$tag" in
 	*) tag="v$tag"; release_version=$tag ;;
 esac
 
-case "$os" in
-	darwin) release_os=Darwin ;;
-	linux) release_os=Linux ;;
-esac
-
-asset="nss_${release_version}_${release_os}_${arch}.tar.gz"
+asset="nss_${release_version}_${os}_${arch}.tar.gz"
 base_url="https://github.com/$repository/releases/download/$tag"
 temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/nss-install.XXXXXX")
 trap 'rm -rf "$temp_dir"' EXIT HUP INT TERM
@@ -75,7 +70,7 @@ fi
 mkdir -p "$install_dir"
 tar -xzf "$temp_dir/$asset" -C "$temp_dir"
 
-archive_dir="$temp_dir/nss_${release_version}_${release_os}_${arch}"
+archive_dir="$temp_dir/nss_${release_version}_${os}_${arch}"
 [ -x "$archive_dir/nss" ] || fail "archive 缺少 nss binary"
 [ -x "$archive_dir/nssd" ] || fail "archive 缺少 nssd binary"
 
