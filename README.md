@@ -42,9 +42,9 @@ Terminal Tab B
 
 - `nssd serve`：管理 remote PTY 與 shell。
 - `nssd attach`：透過 SSH stdin/stdout 轉送 attach protocol。
-- `nssd update`：更新目前 machine 上的 `nssd` binary。
+- `nssd update`：更新目前 machine 上的 `nss` 與 `nssd` binary。
 - `nss <host>`：使用系統 OpenSSH、自動 reconnect、PTY input/output 與 resize。
-- `nss update`：更新目前 machine 上的 `nss` binary。
+- `nss update`：更新目前 machine 上的 `nss` 與 `nssd` binary。
 - 斷線期間的 bounded disk spool 與 reconnect replay。
 
 仍待完成：session persistence across daemon restart、takeover、idle cleanup 與 production deployment hardening。

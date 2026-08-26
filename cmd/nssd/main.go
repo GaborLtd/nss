@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -74,7 +75,7 @@ func runUpdate(args []string, binaryName string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("已更新 %s %s 到 %s\n", binaryName, result.Tag, result.Path)
+	fmt.Printf("已更新 nss 與 nssd %s：%s\n", result.Tag, strings.Join(result.Paths, ", "))
 	return nil
 }
 

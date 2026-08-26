@@ -17,7 +17,7 @@ import (
 func TestRunUpdatesExecutableFromLatestRelease(t *testing.T) {
 	const repository = "owner/repo"
 	asset := "nss_0.1.5_" + runtime.GOOS + "_" + runtime.GOARCH + ".tar.gz"
-	archive := makeArchive(t, "nss_0.1.5_"+runtime.GOOS+"_"+runtime.GOARCH+"/nss", []byte("new binary"))
+	archive := makeArchive(t, "nss_0.1.5_"+runtime.GOOS+"_"+runtime.GOARCH+"/nss", []byte("new nss binary"))
 	hash := sha256.Sum256(archive)
 	checksums := fmt.Sprintf("%x  %s\n", hash, asset)
 
@@ -38,7 +38,11 @@ func TestRunUpdatesExecutableFromLatestRelease(t *testing.T) {
 	defer server.Close()
 
 	target := filepath.Join(t.TempDir(), "nss")
+	companion := filepath.Join(filepath.Dir(target), "nssd")
 	if err := os.WriteFile(target, []byte("old binary"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(companion, []byte("old nssd binary"), 0755); err != nil {
 		t.Fatal(err)
 	}
 	resolvedTarget, err := filepath.EvalSymlinks(target)
@@ -54,21 +58,32 @@ func TestRunUpdatesExecutableFromLatestRelease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Tag != "v0.1.5" || result.Path != resolvedTarget {
-		t.Fatalf("result = %#v, want v0.1.5 and %s", result, resolvedTarget)
+	resolvedCompanion, err := filepath.EvalSymlinks(companion)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Tag != "v0.1.5" || len(result.Paths) != 2 || result.Paths[0] != resolvedTarget || result.Paths[1] != resolvedCompanion {
+		t.Fatalf("result = %#v, want v0.1.5 and both binary paths", result)
 	}
 	updated, err := os.ReadFile(target)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(updated) != "new binary" {
-		t.Fatalf("updated binary = %q, want new binary", updated)
+	if string(updated) != "new nss binary" {
+		t.Fatalf("updated nss binary = %q, want new nss binary", updated)
+	}
+	updatedCompanion, err := os.ReadFile(companion)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(updatedCompanion) != "new nssd binary" {
+		t.Fatalf("updated nssd binary = %q, want new nssd binary", updatedCompanion)
 	}
 }
 
 func TestRunRejectsChecksumMismatchWithoutReplacingBinary(t *testing.T) {
 	asset := "nss_0.1.5_" + runtime.GOOS + "_" + runtime.GOARCH + ".tar.gz"
-	archive := makeArchive(t, "nss_0.1.5_"+runtime.GOOS+"_"+runtime.GOARCH+"/nss", []byte("new binary"))
+	archive := makeArchive(t, "nss_0.1.5_"+runtime.GOOS+"_"+runtime.GOARCH+"/nss", []byte("new nss binary"))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/owner/repo/releases/download/v0.1.5/" + asset:
@@ -82,7 +97,11 @@ func TestRunRejectsChecksumMismatchWithoutReplacingBinary(t *testing.T) {
 	defer server.Close()
 
 	target := filepath.Join(t.TempDir(), "nss")
+	companion := filepath.Join(filepath.Dir(target), "nssd")
 	if err := os.WriteFile(target, []byte("old binary"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(companion, []byte("old nssd binary"), 0755); err != nil {
 		t.Fatal(err)
 	}
 	_, err := Run(Config{
@@ -102,6 +121,13 @@ func TestRunRejectsChecksumMismatchWithoutReplacingBinary(t *testing.T) {
 	if string(updated) != "old binary" {
 		t.Fatalf("binary changed after checksum failure: %q", updated)
 	}
+	updatedCompanion, readErr := os.ReadFile(companion)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(updatedCompanion) != "old nssd binary" {
+		t.Fatalf("companion binary changed after checksum failure: %q", updatedCompanion)
+	}
 }
 
 func makeArchive(t *testing.T, name string, content []byte) []byte {
@@ -109,12 +135,9 @@ func makeArchive(t *testing.T, name string, content []byte) []byte {
 	var buffer bytes.Buffer
 	compressed := gzip.NewWriter(&buffer)
 	writer := tar.NewWriter(compressed)
-	if err := writer.WriteHeader(&tar.Header{Name: name, Mode: 0755, Size: int64(len(content))}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := writer.Write(content); err != nil {
-		t.Fatal(err)
-	}
+	root := filepath.Dir(name)
+	writeArchiveEntry(t, writer, filepath.ToSlash(filepath.Join(root, "nss")), content)
+	writeArchiveEntry(t, writer, filepath.ToSlash(filepath.Join(root, "nssd")), []byte("new nssd binary"))
 	if err := writer.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -122,4 +145,14 @@ func makeArchive(t *testing.T, name string, content []byte) []byte {
 		t.Fatal(err)
 	}
 	return buffer.Bytes()
+}
+
+func writeArchiveEntry(t *testing.T, writer *tar.Writer, name string, content []byte) {
+	t.Helper()
+	if err := writer.WriteHeader(&tar.Header{Name: name, Mode: 0755, Size: int64(len(content))}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writer.Write(content); err != nil {
+		t.Fatal(err)
+	}
 }

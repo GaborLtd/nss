@@ -34,8 +34,8 @@ type Config struct {
 }
 
 type Result struct {
-	Tag  string
-	Path string
+	Tag   string
+	Paths []string
 }
 
 func Run(config Config) (Result, error) {
@@ -76,6 +76,15 @@ func Run(config Config) (Result, error) {
 	if _, err := os.Stat(executablePath); err != nil {
 		return Result{}, fmt.Errorf("找不到要更新的 binary %s: %w", executablePath, err)
 	}
+	currentName := filepath.Base(executablePath)
+	if currentName != "nss" && currentName != "nssd" {
+		return Result{}, fmt.Errorf("目前 binary 名稱必須是 nss 或 nssd：%s", currentName)
+	}
+	companionName := "nss"
+	if currentName == "nss" {
+		companionName = "nssd"
+	}
+	companionPath := filepath.Join(filepath.Dir(executablePath), companionName)
 
 	asset := fmt.Sprintf("nss_%s_%s_%s.tar.gz", releaseVersion, runtime.GOOS, runtime.GOARCH)
 	tempDir, err := os.MkdirTemp("", "nss-update-")
@@ -105,10 +114,13 @@ func Run(config Config) (Result, error) {
 		return Result{}, fmt.Errorf("checksum 驗證失敗：expected=%s actual=%s", expected, actual)
 	}
 
-	if err := replaceFromArchive(archivePath, executablePath, filepath.Base(executablePath)); err != nil {
-		return Result{}, err
+	paths := []string{executablePath, companionPath}
+	for _, path := range paths {
+		if err := replaceFromArchive(archivePath, path, filepath.Base(path)); err != nil {
+			return Result{}, err
+		}
 	}
-	return Result{Tag: tag, Path: executablePath}, nil
+	return Result{Tag: tag, Paths: paths}, nil
 }
 
 func latestTag(client *http.Client, baseURL, repository string) (string, error) {
