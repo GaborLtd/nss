@@ -10,6 +10,20 @@ import (
 	"github.com/gaborltd/nss/internal/session"
 )
 
+func TestRunServeReadyMessageUsesConfiguredPaths(t *testing.T) {
+	// 這個測試確認 daemon ready 訊息包含實際設定，方便手動診斷。
+	socketPath := "/tmp/nss-test/nssd.sock"
+	stateDir := "/tmp/nss-test/state"
+	maxSpoolMB := int64(8)
+
+	message := formatReadyMessage(socketPath, stateDir, maxSpoolMB)
+	for _, expected := range []string{socketPath, stateDir, "8 MiB", "nssd: ready"} {
+		if !bytes.Contains([]byte(message), []byte(expected)) {
+			t.Fatalf("ready message = %q, missing %q", message, expected)
+		}
+	}
+}
+
 func TestHandleAttachRoundTrip(t *testing.T) {
 	m, err := session.NewManager(session.Config{
 		StateDir:      t.TempDir(),

@@ -95,6 +95,7 @@ func runServe(args []string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Fprintln(os.Stderr, formatReadyMessage(*socketPath, *stateDir, *maxSpoolMB))
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(stop)
@@ -114,6 +115,10 @@ func runServe(args []string) error {
 		}
 		go handleAttach(conn, manager)
 	}
+}
+
+func formatReadyMessage(socketPath, stateDir string, maxSpoolMB int64) string {
+	return fmt.Sprintf("nssd: ready; socket=%s; state-dir=%s; max-spool=%d MiB", socketPath, stateDir, maxSpoolMB)
 }
 
 func handleAttach(conn net.Conn, manager *session.Manager) {

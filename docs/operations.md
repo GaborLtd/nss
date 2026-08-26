@@ -27,6 +27,26 @@ nssd serve \
 
 `nssd` 不應該以 root 執行。socket 與 session state 只應由該 Unix user 存取。
 
+成功啟動後會在 stderr 顯示類似以下的 ready 訊息，並持續以前景程序執行：
+
+```text
+nssd: ready; socket=/Users/developer/.local/state/nss/nssd.sock; state-dir=/Users/developer/.local/state/nss; max-spool=4 MiB
+```
+
+看到 `nssd: ready` 代表 Unix socket 已建立、state directory 已初始化，daemon 正在等待 `nss` attach。此時不會回到 shell prompt；要停止前景 daemon 可按 `Ctrl-C`。
+
+另一個 terminal 可用以下指令驗證 daemon 是否可服務管理請求：
+
+```bash
+nssd list
+```
+
+若 daemon 正常但尚未建立 session，會看到只有標題的輸出：
+
+```text
+SESSION_ID	ATTACHED
+```
+
 ## macOS launchd
 
 可建立 `~/Library/LaunchAgents/com.gaborltd.nssd.plist`。將 `/Users/developer/.local/bin/nssd` 替換成實際路徑：

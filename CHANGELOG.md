@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-08-26
+
+- `nssd serve` 啟動完成後顯示 ready 訊息，方便確認 Unix socket 與設定。
+- 補充使用 `nssd list` 驗證 daemon 的操作文件。
+
 - 建立 Native Session Shell（`nss`）project bootstrap。
 - 建立架構、session lifecycle、protocol 與 release 文件。
 - 建立 Go scaffold、GitHub Actions CI、GoReleaser 與 checksum installer。
