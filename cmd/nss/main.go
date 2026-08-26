@@ -14,6 +14,7 @@ import (
 
 	"github.com/gaborltd/nss/internal/protocol"
 	"github.com/gaborltd/nss/internal/session"
+	updater "github.com/gaborltd/nss/internal/update"
 	"github.com/gaborltd/nss/internal/version"
 	"golang.org/x/term"
 )
@@ -43,10 +44,42 @@ func main() {
 		fmt.Println(version.String("nss"))
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "update" {
+		if err := runUpdate(os.Args[2:], "nss"); err != nil {
+			fmt.Fprintln(os.Stderr, "nss:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, "nss:", err)
 		os.Exit(1)
 	}
+}
+
+func runUpdate(args []string, binaryName string) error {
+	flags := flag.NewFlagSet(binaryName+" update", flag.ContinueOnError)
+	repository := os.Getenv("NSS_REPOSITORY")
+	if repository == "" {
+		repository = "gaborltd/nss"
+	}
+	repositoryFlag := flags.String("repository", repository, "GitHub repository")
+	versionFlag := flags.String("version", "latest", "release version")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("usage: %s update [--version vX.Y.Z]", binaryName)
+	}
+	result, err := updater.Run(updater.Config{
+		Repository: *repositoryFlag,
+		Version:    *versionFlag,
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("已更新 %s %s 到 %s\n", binaryName, result.Tag, result.Path)
+	return nil
 }
 
 func run(args []string) error {

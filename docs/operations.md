@@ -152,6 +152,20 @@ ssh -T office-mini nssd close --session-id <session-id>
 
 `nssd close` 會結束對應 PTY 與 child process。跨裝置 takeover 目前尚未開放，避免兩個 terminal 同時寫入同一個 shell。
 
+## 更新 binary
+
+安裝完成後可直接從 GitHub Release 更新目前執行檔：
+
+```bash
+# laptop / client
+nss update
+
+# remote server / daemon host
+nssd update
+```
+
+可用 `--version vX.Y.Z` 固定更新版本。update 會下載對應平台 archive、驗證 `checksums.txt`，再以 atomic replace 取代 binary。它不會自動重啟正在執行的 `nssd serve`；使用 launchd 或 systemd 時，請在更新後重啟 service。
+
 ## 目前限制
 
 - daemon restart 後目前不承諾恢復既有 PTY。

@@ -15,6 +15,7 @@ import (
 	"github.com/gaborltd/nss/internal/protocol"
 	"github.com/gaborltd/nss/internal/runtimepath"
 	"github.com/gaborltd/nss/internal/session"
+	updater "github.com/gaborltd/nss/internal/update"
 	"github.com/gaborltd/nss/internal/version"
 )
 
@@ -40,12 +41,41 @@ func main() {
 		if err := runAdminClose(os.Args[2:]); err != nil {
 			fatal(err)
 		}
+	case "update":
+		if err := runUpdate(os.Args[2:], "nssd"); err != nil {
+			fatal(err)
+		}
 	case "--version", "version":
 		fmt.Println(version.String("nssd"))
 	default:
 		usage()
 		os.Exit(2)
 	}
+}
+
+func runUpdate(args []string, binaryName string) error {
+	flags := flag.NewFlagSet(binaryName+" update", flag.ContinueOnError)
+	repository := os.Getenv("NSS_REPOSITORY")
+	if repository == "" {
+		repository = "gaborltd/nss"
+	}
+	repositoryFlag := flags.String("repository", repository, "GitHub repository")
+	versionFlag := flags.String("version", "latest", "release version")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("usage: %s update [--version vX.Y.Z]", binaryName)
+	}
+	result, err := updater.Run(updater.Config{
+		Repository: *repositoryFlag,
+		Version:    *versionFlag,
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("已更新 %s %s 到 %s\n", binaryName, result.Tag, result.Path)
+	return nil
 }
 
 func runServe(args []string) error {
@@ -368,7 +398,7 @@ func removeStaleSocket(path string) error {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: nssd serve|attach|list|close|--version")
+	fmt.Fprintln(os.Stderr, "usage: nssd serve|attach|list|close|update|--version")
 }
 
 func fatal(err error) {

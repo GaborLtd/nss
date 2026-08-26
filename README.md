@@ -42,7 +42,9 @@ Terminal Tab B
 
 - `nssd serve`：管理 remote PTY 與 shell。
 - `nssd attach`：透過 SSH stdin/stdout 轉送 attach protocol。
+- `nssd update`：更新目前 machine 上的 `nssd` binary。
 - `nss <host>`：使用系統 OpenSSH、自動 reconnect、PTY input/output 與 resize。
+- `nss update`：更新目前 machine 上的 `nss` binary。
 - 斷線期間的 bounded disk spool 與 reconnect replay。
 
 仍待完成：session persistence across daemon restart、takeover、idle cleanup 與 production deployment hardening。
@@ -74,3 +76,12 @@ curl -fsSL https://raw.githubusercontent.com/gaborltd/nss/main/scripts/nss_insta
 ```
 
 installer 會從 `gaborltd/nss` 的 GitHub Release 下載對應平台的 archive，先驗證 SHA-256，再將 `nss` 與 `nssd` 安裝到 `~/.local/bin`。未來若有正式網域，可將同一支 script 暴露為 `https://YOUR-DOMAIN.example/nss_install.sh`。
+
+安裝完成後可直接更新目前的 binary，不必再次下載 installer：
+
+```bash
+nss update
+nssd update
+```
+
+也可以指定版本，例如 `nss update --version v0.1.5`。更新只會取代 binary，不會自動重啟正在執行的 `nssd serve`；daemon 需要透過 launchd、systemd 或手動重啟才能載入新版本。
