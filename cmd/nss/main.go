@@ -19,6 +19,10 @@ import (
 )
 
 var errDisconnected = errors.New("ssh transport disconnected")
+var errRemoteNSSDNotFound = errors.New("remote nssd command not found")
+var errTerminated = errors.New("nss terminated")
+
+const remoteAttachCommand = `PATH="$HOME/.local/bin:$PATH" exec nssd attach`
 
 type clientConfig struct {
 	host           string
@@ -100,6 +104,9 @@ func run(args []string) error {
 		}
 		defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
 	}
+	interrupts := make(chan os.Signal, 1)
+	signal.Notify(interrupts, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(interrupts)
 
 	inputCh := make(chan []byte, 1)
 	inputClosed := make(chan struct{})
@@ -115,9 +122,15 @@ func run(args []string) error {
 	backoff := config.initialBackoff
 	first := true
 	for {
-		err := runConnection(config, inputCh, inputClosed, resizeCh)
+		err := runConnection(config, inputCh, inputClosed, resizeCh, interrupts)
 		if err == nil {
 			return nil
+		}
+		if errors.Is(err, errTerminated) {
+			return nil
+		}
+		if errors.Is(err, errRemoteNSSDNotFound) {
+			return err
 		}
 		if first {
 			fmt.Fprintln(os.Stderr, "[nss] connection lost; reconnecting")
@@ -127,6 +140,11 @@ func run(args []string) error {
 		timer := time.NewTimer(backoff)
 		select {
 		case <-timer.C:
+		case <-interrupts:
+			if !timer.Stop() {
+				<-timer.C
+			}
+			return nil
 		case <-inputClosed:
 			if !timer.Stop() {
 				<-timer.C
@@ -142,12 +160,13 @@ func run(args []string) error {
 	}
 }
 
-func runConnection(config clientConfig, inputCh <-chan []byte, inputClosed <-chan struct{}, resizeCh <-chan [2]uint16) error {
+func runConnection(config clientConfig, inputCh <-chan []byte, inputClosed <-chan struct{}, resizeCh <-chan [2]uint16, interrupts <-chan os.Signal) error {
 	// 丟棄斷線期間最多暫存的一筆輸入，避免重新連線後盲送舊指令。
 	drainInput(inputCh)
 
-	cmd := exec.Command("ssh", "-T", config.host, "nssd", "attach")
-	cmd.Stderr = os.Stderr
+	cmd := exec.Command("ssh", "-T", config.host, remoteAttachCommand)
+	var sshStderr strings.Builder
+	cmd.Stderr = io.MultiWriter(os.Stderr, &sshStderr)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return err
@@ -196,7 +215,7 @@ func runConnection(config clientConfig, inputCh <-chan []byte, inputClosed <-cha
 		select {
 		case event := <-frames:
 			if event.err != nil {
-				return errDisconnected
+				return classifySSHDisconnect(waitCh, sshStderr.String())
 			}
 			switch event.frame.Type {
 			case protocol.TypeOpenOK:
@@ -235,9 +254,34 @@ func runConnection(config clientConfig, inputCh <-chan []byte, inputClosed <-cha
 				_ = protocol.Write(stdin, protocol.Frame{Type: protocol.TypeClose})
 			}
 			return nil
-		case <-waitCh:
-			return errDisconnected
+		case waitErr := <-waitCh:
+			return classifySSHExit(waitErr, sshStderr.String())
+		case <-interrupts:
+			return errTerminated
 		}
+	}
+}
+
+func classifySSHExit(waitErr error, stderr string) error {
+	var exitErr *exec.ExitError
+	if errors.As(waitErr, &exitErr) && exitErr.ExitCode() == 127 {
+		detail := strings.TrimSpace(stderr)
+		if detail != "" {
+			return fmt.Errorf("%w: %s; 請先在遠端安裝 nssd，並啟動 `nssd serve`", errRemoteNSSDNotFound, detail)
+		}
+		return fmt.Errorf("%w: 請先在遠端安裝 nssd，並啟動 `nssd serve`", errRemoteNSSDNotFound)
+	}
+	return errDisconnected
+}
+
+func classifySSHDisconnect(waitCh <-chan error, stderr string) error {
+	timer := time.NewTimer(100 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case waitErr := <-waitCh:
+		return classifySSHExit(waitErr, stderr)
+	case <-timer.C:
+		return errDisconnected
 	}
 }
 
