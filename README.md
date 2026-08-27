@@ -1,10 +1,10 @@
 # Native Session Shell
 
-Native Session Shell（`nss`）是一個給遠端開發使用的 native terminal session 工具。
+Native Session Shell (`nss`) is a native-feeling terminal session tool for remote development.
 
-它保留 tmux 最重要的能力：SSH 斷線時，遠端 shell 與正在執行的 process 仍然存活；但它不提供 tmux 的多 window、多 pane 或 prefix hotkey。
+It keeps the most important tmux capability: the remote shell and running processes survive an SSH disconnect. It does not provide tmux-style windows, panes, or prefix hotkeys.
 
-## 核心體驗
+## Core experience
 
 ```text
 Terminal Tab A
@@ -16,43 +16,43 @@ Terminal Tab B
         └── remote PTY + zsh
 ```
 
-一個原生 terminal tab 對應一個遠端 session。連線中斷時，`nss` 自動重試 SSH，連線恢復後重新 attach 到原本的 PTY。
+One native terminal tab maps to one remote session. When the connection is interrupted, `nss` retries SSH and reattaches to the original PTY when connectivity returns.
 
-## 設計邊界
+## Design boundaries
 
-- 使用系統 OpenSSH，不重新實作 SSH client。
-- LAN、VPN、Cloudflare Tunnel、jump host 等都只是 SSH transport。
-- `nss` 不攔截 tmux prefix，也不管理 terminal tabs。
-- `nssd` 在遠端持有 PTY 與 shell process。
-- 斷線期間的輸出使用有上限的 disk spool，不使用無界 memory。
-- 不預設保存或重送斷線期間的 raw keyboard input。
-- 預設不允許第二個 client 自動接管 session；takeover 必須明確操作。
+- Use the system OpenSSH client; do not reimplement SSH.
+- LAN, VPN, Cloudflare Tunnel, jump hosts, and similar options are only SSH transports.
+- `nss` does not intercept tmux prefixes or manage terminal tabs.
+- `nssd` owns the remote PTY and shell process.
+- Disconnected output uses bounded disk spool storage, not unbounded memory.
+- Raw keyboard input is not saved or replayed by default while disconnected.
+- A second client may not silently take over a session; takeover must be explicit.
 
-## 目前狀態
+## Current status
 
-目前 repository 已完成第一個可工作的 MVP vertical slice，並已建立：
+The repository contains a working MVP vertical slice and has:
 
-- 專案工程規範與文件入口。
-- Go module 與 `nss` / `nssd` executable。
-- GitHub Actions CI。
-- GitHub tag release 與 GoReleaser 設定。
-- checksum 驗證的 installer scaffold。
+- Project engineering guidelines and documentation entry points.
+- A Go module with `nss` and `nssd` executables.
+- GitHub Actions CI.
+- GitHub tag releases and GoReleaser configuration.
+- A checksum-verifying installer.
 
-目前已實作：
+Implemented:
 
-- `nssd serve`：管理 remote PTY 與 shell。
-- `nssd attach`：透過 SSH stdin/stdout 轉送 attach protocol。
-- `nssd update`：更新目前 machine 上的 `nss` 與 `nssd` binary。
-- `nssd service install|status|restart|uninstall`：註冊與管理背景 daemon service。
-- `nss <host>`：使用系統 OpenSSH、自動 reconnect、PTY input/output 與 resize。
-- `nss update`：更新目前 machine 上的 `nss` 與 `nssd` binary。
-- 斷線期間的 bounded disk spool 與 reconnect replay。
+- `nssd serve`: manage the remote PTY and shell.
+- `nssd attach`: forward the attach protocol over SSH stdin/stdout.
+- `nssd update`: update both `nss` and `nssd` on the current machine.
+- `nssd service install|status|restart|uninstall`: register and manage the background daemon service.
+- `nss <host>`: use system OpenSSH with reconnect, PTY input/output, and resize support.
+- `nss update`: update both `nss` and `nssd` on the current machine.
+- Bounded disk spool and reconnect replay for output produced while disconnected.
 
-仍待完成：session persistence across daemon restart、takeover、idle cleanup、Windows service backend 與 production deployment hardening。
+Still to be completed: persistence across daemon restarts, takeover, idle cleanup, a Windows service backend, and production deployment hardening.
 
-## 開發
+## Development
 
-需要 Go toolchain。建議使用 `go.mod` 宣告的 Go 版本。
+Go is required. Use the Go version declared by `go.mod`.
 
 ```bash
 go test -race -cover ./...
@@ -60,29 +60,31 @@ go vet ./...
 go build ./cmd/nss ./cmd/nssd
 ```
 
-更完整的設計請閱讀：
+For detailed design, read:
 
-- [架構](docs/architecture.md)
+- [Architecture](docs/architecture.md)
 - [Session lifecycle](docs/lifecycle.md)
-- [Protocol 初稿](docs/protocol.md)
-- [Server deployment](docs/operations.md)
-- [測試與 release process](docs/testing-and-release.md)
+- [Attach protocol](docs/protocol.md)
+- [Server operations](docs/operations.md)
+- [Testing and release process](docs/testing-and-release.md)
 
-## 安裝方向
+Traditional Chinese documentation is available in [the Traditional Chinese README](README.zh-TW.md) and [the Traditional Chinese documentation index](docs/zh-TW/README.md).
 
-Release 後預期支援：
+## Installation
+
+Install the latest release with:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gaborltd/nss/main/scripts/nss_install.sh | sh
 ```
 
-installer 會從 `gaborltd/nss` 的 GitHub Release 下載對應平台的 archive，先驗證 SHA-256，再將 `nss` 與 `nssd` 安裝到 `~/.local/bin`。未來若有正式網域，可將同一支 script 暴露為 `https://YOUR-DOMAIN.example/nss_install.sh`。
+The installer downloads the platform archive from a `gaborltd/nss` GitHub Release, verifies SHA-256, and installs both `nss` and `nssd` into `~/.local/bin`. A future custom domain can expose the same script as `https://YOUR-DOMAIN.example/nss_install.sh`.
 
-安裝完成後可直接更新目前的 binary，不必再次下載 installer：
+After installation, update both binaries directly without downloading the installer again:
 
 ```bash
 nss update
 nssd update
 ```
 
-也可以指定版本，例如 `nss update --version v0.1.5`。更新只會取代 binary，不會自動重啟正在執行的 `nssd serve`；daemon 需要透過 launchd、systemd 或手動重啟才能載入新版本。
+You can pin a version, for example `nss update --version v0.2.1`. Updating replaces the binaries but does not restart a running `nssd serve`; use launchd, systemd, or a manual restart to load the new version.

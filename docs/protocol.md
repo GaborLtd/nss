@@ -1,10 +1,10 @@
-# Attach Protocol 初稿
+# Attach Protocol Draft
 
-## 目的
+## Purpose
 
-此 protocol 是 `nss` 與 `nssd` 之間的 application protocol，承載於標準 SSH stdin/stdout。它不取代 SSH，也不處理 SSH authentication。
+This protocol is the application protocol between `nss` and `nssd`, carried over standard SSH stdin/stdout. It does not replace SSH or handle SSH authentication.
 
-## 連線流程
+## Connection flow
 
 ```text
 nss → ssh -T host nssd attach ...
@@ -13,50 +13,50 @@ nss → ATTACH(session id, secret, terminal size)
 nssd → ATTACHED(session metadata)
 nss ⇄ PTY_BYTES
 nss → RESIZE(rows, cols)
-nss → CLOSE 或 transport EOF
+nss → CLOSE or transport EOF
 ```
 
 ## Framing
 
-每個 frame 使用固定 5-byte header：
+Each frame uses a fixed 5-byte header:
 
 ```text
 1 byte   type
-4 bytes  payload length（big-endian uint32）
+4 bytes  payload length (big-endian uint32)
 N bytes  payload
 ```
 
-單一 frame 的 payload 上限為 16 MiB。PTY output 使用 `DATA` frame；control payload 使用 JSON 或固定長度 binary payload。
+The payload limit for one frame is 16 MiB. PTY output uses `DATA` frames; control payloads use JSON or fixed-length binary payloads.
 
-目前 frame type：
+Current frame types:
 
-| Type | 用途 | Payload |
+| Type | Purpose | Payload |
 |---|---|---|
-| `OPEN` | 建立或重新 attach session | JSON |
-| `OPEN_OK` | attach 成功 | JSON |
-| `OPEN_ERROR` | attach 失敗 | UTF-8 error message |
-| `DATA` | terminal input/output | raw bytes |
-| `RESIZE` | terminal resize | rows/cols，各 2 bytes |
-| `CLOSE` | 明確關閉 session | empty |
-| `ADMIN_LIST` | 查詢 session metadata | empty |
-| `ADMIN_OK` | admin 成功或 session list | JSON 或 empty |
-| `ADMIN_CLOSE` | 強制關閉指定 session | JSON |
+| `OPEN` | Create or reattach a session | JSON |
+| `OPEN_OK` | Attach succeeded | JSON |
+| `OPEN_ERROR` | Attach failed | UTF-8 error message |
+| `DATA` | Terminal input/output | Raw bytes |
+| `RESIZE` | Terminal resize | Rows/cols, 2 bytes each |
+| `CLOSE` | Explicitly close the session | Empty |
+| `ADMIN_LIST` | Query session metadata | Empty |
+| `ADMIN_OK` | Admin success or session list | JSON or empty |
+| `ADMIN_CLOSE` | Force-close a session | JSON |
 
-## 設計原則
+## Design principles
 
-- protocol 必須有 version。
-- control frame 與 raw PTY bytes 必須可區分。
-- frame 必須有 length limit，拒絕異常的大 frame。
-- attach、takeover、close 都要有明確 result code。
-- reconnect 必須是 idempotent：同一 client retry 不應建立多個 PTY。
-- server 必須能回報 replay gap，不能假裝 spool 保存了所有 output。
+- The protocol must have a version.
+- Control frames and raw PTY bytes must be distinguishable.
+- Frames must have a length limit and reject abnormally large frames.
+- Attach, takeover, and close must have explicit result codes.
+- Reconnect must be idempotent: retrying the same client must not create multiple PTYs.
+- The server must report replay gaps rather than pretending that the spool preserved all output.
 
-## 後續 protocol revision
+## Future protocol revisions
 
-以下項目在 production hardening 前必須形成 ADR 或 protocol revision：
+Before production hardening, the following must be captured in an ADR or protocol revision:
 
-- session secret 的傳遞與 rotation。
-- replay spool 的 offset/sequence number。
-- terminal resize race condition。
-- takeover 時舊 client 的 shutdown handshake。
-- shell integration 的 optional capability。
+- Session-secret transport and rotation.
+- Replay-spool offsets/sequence numbers.
+- Terminal-resize race conditions.
+- Shutdown handshake for the old client during takeover.
+- Optional shell-integration capability.

@@ -1,22 +1,22 @@
 # Server Operations
 
-## 手動啟動
+## Manual startup
 
-在 remote server 安裝 `nssd` 後，先以目前登入使用者啟動 daemon：
+After installing `nssd` on the remote server, start the daemon as the current user:
 
 ```bash
 nssd serve
 ```
 
-預設路徑：
+Default paths:
 
 ```text
 socket:    ~/.local/state/nss/nssd.sock
 state dir: ~/.local/state/nss/
-spool:     每個 session 4 MiB
+spool:     4 MiB per session
 ```
 
-可以覆寫：
+Override them when needed:
 
 ```bash
 nssd serve \
@@ -25,11 +25,11 @@ nssd serve \
   --max-spool-mb 16
 ```
 
-`nssd` 不應該以 root 執行。socket 與 session state 只應由該 Unix user 存取。
+Do not run `nssd` as root. The socket and session state should be accessible only to that Unix user.
 
-## Service 管理
+## Service management
 
-不需要手動撰寫 plist 或 systemd unit。使用目前登入的 Unix user 執行：
+You do not need to write a plist or systemd unit by hand. Run these commands as the current Unix user:
 
 ```bash
 nssd service install
@@ -38,41 +38,41 @@ nssd service restart
 nssd service uninstall
 ```
 
-`install` 會依作業系統產生並註冊 user-level service：macOS 使用 LaunchAgent，Linux 使用 systemd user service。`status` 會顯示 `active`、`inactive` 或 `not-installed`，以及實際 service file 路徑。這些指令不使用 root，也不會管理其他 Unix user 的 daemon。
+`install` generates and registers a user-level service for the operating system: a macOS LaunchAgent or a Linux systemd user service. `status` reports `active`, `inactive`, or `not-installed`, together with the service file path. These commands do not use root and do not manage another Unix user's daemon.
 
-Linux remote server 若需要在 logout 後仍維持 user service，可另外啟用 user lingering：
+On a Linux server, enable user lingering if the service must remain alive after logout:
 
 ```bash
 loginctl enable-linger "$USER"
 ```
 
-Windows service backend 尚未支援；目前 release 的 daemon service 管理範圍是 macOS 與 Linux。
+The Windows service backend is not implemented. The current release supports daemon service management on macOS and Linux.
 
-成功啟動後會在 stderr 顯示類似以下的 ready 訊息，並持續以前景程序執行：
+After successful startup, the foreground daemon prints a readiness message to stderr:
 
 ```text
 nssd: ready; socket=/Users/developer/.local/state/nss/nssd.sock; state-dir=/Users/developer/.local/state/nss; max-spool=4 MiB
 ```
 
-看到 `nssd: ready` 代表 Unix socket 已建立、state directory 已初始化，daemon 正在等待 `nss` attach。此時不會回到 shell prompt；要停止前景 daemon 可按 `Ctrl-C`。
+`nssd: ready` means the Unix socket exists, the state directory is initialized, and the daemon is waiting for an `nss` attach. The process does not return to the shell prompt; press `Ctrl-C` to stop a foreground daemon.
 
-另一個 terminal 可用以下指令驗證 daemon 是否可服務管理請求：
+From another terminal, verify that the daemon accepts management requests:
 
 ```bash
 nssd list
 ```
 
-若 daemon 正常但尚未建立 session，會看到只有標題的輸出：
+If the daemon is healthy but no session exists, the output contains only the header:
 
 ```text
-SESSION_ID	ATTACHED
+SESSION_ID\tATTACHED
 ```
 
 ## macOS launchd
 
-`nssd service install` 會產生 `~/Library/LaunchAgents/com.gaborltd.nssd.plist`，內容使用目前 `nssd` 的 absolute path，並將 stdout/stderr 寫入 `~/Library/Logs/nss/`。不建議手動修改 generated plist；若要重新產生，重新執行 `nssd service install`。
+`nssd service install` generates `~/Library/LaunchAgents/com.gaborltd.nssd.plist` using the absolute path of the current `nssd` binary. Standard output and error are written to `~/Library/Logs/nss/`. Do not edit the generated plist by hand; run `nssd service install` again to regenerate it.
 
-需要手動檢查時，plist 結構如下：
+For manual inspection, the plist has this shape:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -91,14 +91,14 @@ SESSION_ID	ATTACHED
   <key>KeepAlive</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>/tmp/nssd.stdout.log</string>
+  <string>/Users/developer/Library/Logs/nss/nssd.stdout.log</string>
   <key>StandardErrorPath</key>
-  <string>/tmp/nssd.stderr.log</string>
+  <string>/Users/developer/Library/Logs/nss/nssd.stderr.log</string>
 </dict>
 </plist>
 ```
 
-載入：
+The CLI performs the equivalent load/restart operations. If manual loading is required:
 
 ```bash
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.gaborltd.nssd.plist
@@ -107,7 +107,7 @@ launchctl kickstart -k gui/$(id -u)/com.gaborltd.nssd
 
 ## Linux systemd user service
 
-`nssd service install` 會產生 `~/.config/systemd/user/nssd.service`。需要手動檢查時，unit 結構如下：
+`nssd service install` generates `~/.config/systemd/user/nssd.service`. The unit has this shape:
 
 ```ini
 [Unit]
@@ -122,79 +122,77 @@ RestartSec=2
 WantedBy=default.target
 ```
 
-啟用：
+The CLI automatically runs the equivalent commands:
 
 ```bash
 systemctl --user daemon-reload
 systemctl --user enable --now nssd.service
 ```
 
-正常情況下不需要手動執行上述 `systemctl` 指令；`nssd service install` 會自動執行 daemon-reload、enable 與 start。
-
 ## SSH smoke test
 
-確認 server daemon 與 PATH：
+Verify the server daemon and its path:
 
 ```bash
 ssh -T office-mini nssd --version
 ssh -T office-mini nssd attach
 ```
 
-`nss` 會在遠端 SSH command 執行前自動將 `~/.local/bin` 加入 `PATH`。因此若使用 installer 的預設位置，非互動 SSH shell 也能找到 `nssd`。但 `nssd` binary 必須安裝在遠端 machine，且 daemon 必須先啟動：
+Before executing the remote SSH command, `nss` adds `~/.local/bin` to the remote `PATH`. Therefore the default installer location works for non-interactive SSH shells. The `nssd` binary must be installed on the remote machine and the daemon must already be running:
 
 ```bash
-# 在 remote server 執行
+# Run this on the remote server.
 nssd serve
 ```
 
-若仍看到 `command not found: nssd`，請在 remote server 確認：
+If you still see `command not found: nssd`, check the remote server:
 
 ```bash
 command -v nssd
 ~/.local/bin/nssd --version
 ```
 
-若 `~/.local/bin/nssd` 存在但 `command -v nssd` 找不到，表示尚未完成遠端安裝或使用了不同的安裝路徑。
+If `~/.local/bin/nssd` exists but `command -v nssd` does not find it, the remote installation is incomplete or uses a different install path.
 
-第二個指令會等待 `nss` protocol bytes，不適合直接在互動 terminal 手動輸入；它主要用於確認 binary 與 socket path。正式使用請執行：
+The second SSH command waits for protocol bytes and is not intended for an interactive terminal. It is mainly useful for checking the binary and socket path. For normal use, run:
 
 ```bash
 nss office-mini
 ```
 
-## Session 管理
+## Session management
 
-管理指令透過同一個 Unix socket 執行，只有該 Unix user 可以使用：
+Management commands use the same Unix socket and are available only to that Unix user:
 
 ```bash
 nssd list
 nssd close --session-id <session-id>
 
-# 也可以透過一般 SSH 執行遠端管理指令
+# The same management commands can run over ordinary SSH.
 ssh -T office-mini nssd list
 ssh -T office-mini nssd close --session-id <session-id>
 ```
 
-`nssd close` 會結束對應 PTY 與 child process。跨裝置 takeover 目前尚未開放，避免兩個 terminal 同時寫入同一個 shell。
+`nssd close` terminates the selected PTY and child process. Cross-device takeover is not currently available, preventing two terminals from writing to the same shell.
 
-## 更新 binary
+## Updating binaries
 
-安裝完成後可直接從 GitHub Release 更新目前執行檔：
+After installation, update the current machine directly from GitHub Releases:
 
 ```bash
-# laptop / client
+# Laptop / client.
 nss update
 
-# remote server / daemon host
+# Remote server / daemon host.
 nssd update
 ```
 
-可用 `--version vX.Y.Z` 固定更新版本。update 會下載對應平台 archive、驗證 `checksums.txt`，再以 atomic replace 取代 binary。它不會自動重啟正在執行的 `nssd serve`；使用 launchd 或 systemd 時，請在更新後重啟 service。
+Both commands update `nss` and `nssd` together. Use `--version vX.Y.Z` to pin a version. The update downloads the platform archive, verifies `checksums.txt`, and atomically replaces the binaries. It does not restart a running `nssd serve`; restart the launchd or systemd service after updating.
 
-## 目前限制
+## Current limitations
 
-- daemon restart 後目前不承諾恢復既有 PTY。
-- idle cleanup 與跨裝置 takeover 尚未完成。
-- spool 是有限 replay window，不保存無限 terminal history。
-- `nss` 預設不保存斷線期間的 raw keyboard input。
-- 強制使用 `kill -9` 無法執行任何 cleanup；若 terminal 因此仍處於 raw mode，可執行 `stty sane` 或重新開啟 terminal tab。正常 `SIGTERM`、`SIGINT` 與 `SIGHUP` 會先恢復 local terminal state。
+- Existing PTYs are not currently promised to survive a daemon restart.
+- Idle cleanup and cross-device takeover are not implemented.
+- The spool is a finite replay window, not unlimited terminal history.
+- `nss` does not save raw keyboard input while disconnected by default.
+- `kill -9` cannot run cleanup. If it leaves the terminal in raw mode, run `stty sane` or open a new terminal tab. Normal `SIGTERM`, `SIGINT`, and `SIGHUP` handling restores the local terminal state first.
