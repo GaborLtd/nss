@@ -4,9 +4,11 @@
 
 ## [Unreleased]
 
-- 新增 `nss update` 與 `nssd update`，支援 checksum 驗證後更新目前 binary。
-- update 使用 atomic replace，checksum 或 archive 驗證失敗時不會取代既有 binary。
+## [0.2.1] - 2026-08-27
+
+- 發布 `nss update` 與 `nssd update`，支援 checksum 驗證後同時更新 `nss` 與 `nssd`。
 - 新增 `nssd service install|status|restart|uninstall`，自動管理 macOS LaunchAgent 與 Linux systemd user service。
+- 重新建立 release tag，避開 GitHub Actions incident 期間遺留的 queued runs。
 
 ## [0.1.4] - 2026-08-26
 
