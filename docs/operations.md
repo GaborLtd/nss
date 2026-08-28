@@ -160,6 +160,8 @@ The second SSH command waits for protocol bytes and is not intended for an inter
 nss office-mini
 ```
 
+During a normal interactive session, SSH diagnostic output is captured instead of being written directly into the remote PTY view. If the transport disconnects, `nss` renders a short cursor-preserving reconnect status line and clears it before the next connection attempt. This keeps the remote prompt and terminal layout readable while still showing that reconnect is in progress.
+
 ## Session management
 
 Management commands use the same Unix socket and are available only to that Unix user:

@@ -95,6 +95,8 @@ No new host database, tunnel configuration, or authentication system is required
 
 If the laptop lid closes or the network changes, the tab remains open and `nss` enters reconnect mode. When the network returns, it attaches to the original remote PTY and resumes the same shell.
 
+During reconnect, `nss` keeps SSH diagnostics out of the live PTY view and shows a short, cursor-preserving status line. The status line is cleared when the next connection attempt starts, so the remote prompt and terminal layout are not permanently overwritten.
+
 Do not type commands while disconnected. `nss` intentionally does not queue and replay arbitrary raw keyboard input, because replaying stale input could run an unintended command.
 
 ## How it compares

@@ -43,6 +43,8 @@ command -v nssd
 ~/.local/bin/nssd --version
 ```
 
+正常 interactive session 中，SSH diagnostic 不會直接混入 remote PTY 畫面。transport 斷線時，`nss` 會顯示短暫且保存 cursor 位置的 reconnect 狀態列，下一次連線開始前清除，讓 remote prompt 與 terminal layout 保持可讀。
+
 ## Session 管理與更新
 
 ```bash

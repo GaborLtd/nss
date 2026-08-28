@@ -154,7 +154,18 @@ func run(args []string) error {
 
 	backoff := config.initialBackoff
 	first := true
+	statusANSI := !config.noTTY && term.IsTerminal(int(os.Stderr.Fd()))
+	statusActive := false
+	defer func() {
+		if statusActive {
+			_ = clearReconnectStatus(os.Stderr, statusANSI)
+		}
+	}()
 	for {
+		if statusActive {
+			_ = clearReconnectStatus(os.Stderr, statusANSI)
+			statusActive = false
+		}
 		err := runConnection(config, inputCh, inputClosed, resizeCh, interrupts)
 		if err == nil {
 			return nil
@@ -166,10 +177,12 @@ func run(args []string) error {
 			return err
 		}
 		if first {
-			fmt.Fprintln(os.Stderr, "[nss] connection lost; reconnecting")
+			_ = writeReconnectStatus(os.Stderr, "connection lost; reconnecting", statusANSI)
+			statusActive = true
 			first = false
 		}
-		fmt.Fprintf(os.Stderr, "[nss] retrying in %s: %v\n", backoff, err)
+		_ = writeReconnectStatus(os.Stderr, fmt.Sprintf("retrying in %s: %v", backoff, err), statusANSI)
+		statusActive = true
 		timer := time.NewTimer(backoff)
 		select {
 		case <-timer.C:
@@ -199,7 +212,12 @@ func runConnection(config clientConfig, inputCh <-chan []byte, inputClosed <-cha
 
 	cmd := exec.Command("ssh", "-T", config.host, remoteAttachCommand)
 	var sshStderr strings.Builder
-	cmd.Stderr = io.MultiWriter(os.Stderr, &sshStderr)
+	if config.noTTY || !term.IsTerminal(int(os.Stderr.Fd())) {
+		cmd.Stderr = io.MultiWriter(os.Stderr, &sshStderr)
+	} else {
+		// 互動式 terminal 由 nss 統一顯示 reconnect 狀態，避免 ssh 錯誤訊息破壞畫面。
+		cmd.Stderr = &sshStderr
+	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return err
@@ -298,11 +316,14 @@ func runConnection(config clientConfig, inputCh <-chan []byte, inputClosed <-cha
 func classifySSHExit(waitErr error, stderr string) error {
 	var exitErr *exec.ExitError
 	if errors.As(waitErr, &exitErr) && exitErr.ExitCode() == 127 {
-		detail := strings.TrimSpace(stderr)
+		detail := compactSSHError(stderr)
 		if detail != "" {
 			return fmt.Errorf("%w: %s; 請先在遠端安裝 nssd，並啟動 `nssd serve`", errRemoteNSSDNotFound, detail)
 		}
 		return fmt.Errorf("%w: 請先在遠端安裝 nssd，並啟動 `nssd serve`", errRemoteNSSDNotFound)
+	}
+	if detail := compactSSHError(stderr); detail != "" {
+		return fmt.Errorf("%w: %s", errDisconnected, detail)
 	}
 	return errDisconnected
 }
@@ -314,8 +335,19 @@ func classifySSHDisconnect(waitCh <-chan error, stderr string) error {
 	case waitErr := <-waitCh:
 		return classifySSHExit(waitErr, stderr)
 	case <-timer.C:
+		if detail := compactSSHError(stderr); detail != "" {
+			return fmt.Errorf("%w: %s", errDisconnected, detail)
+		}
 		return errDisconnected
 	}
+}
+
+func compactSSHError(stderr string) string {
+	detail := strings.Join(strings.Fields(stderr), " ")
+	if len(detail) > 240 {
+		return detail[:240] + "..."
+	}
+	return detail
 }
 
 func readInput(inputCh chan<- []byte, inputClosed chan<- struct{}) {
@@ -381,4 +413,23 @@ func drainInput(inputCh <-chan []byte) {
 			return
 		}
 	}
+}
+
+func writeReconnectStatus(w io.Writer, message string, ansi bool) error {
+	if !ansi {
+		_, err := fmt.Fprintf(w, "[nss] %s\n", message)
+		return err
+	}
+	// 儲存 remote cursor，在下一行顯示狀態，再還原 cursor，避免污染目前的 prompt/畫面。
+	_, err := fmt.Fprintf(w, "\x1b7\r\n\x1b[2K[nss] %s\r\n\x1b8", message)
+	return err
+}
+
+func clearReconnectStatus(w io.Writer, ansi bool) error {
+	if !ansi {
+		return nil
+	}
+	// 狀態列位於 remote cursor 的下一行；清除後還原原本的 cursor 位置。
+	_, err := io.WriteString(w, "\x1b7\r\n\x1b[2K\x1b8")
+	return err
 }
