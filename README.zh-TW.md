@@ -133,6 +133,8 @@ nssd close --session-id <session-id>
 
 目前尚不保證 daemon restart 或 server reboot 後可以恢復既有 PTY；cross-device takeover、automatic idle cleanup 與 Windows service backend 也仍在後續規劃中。
 
+和一般 `ssh <host>` 一樣，每個新的 remote session 都會從 authenticated user 的 home directory 開始。
+
 ## 文件
 
 - [英文 README](README.md)

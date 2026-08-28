@@ -16,6 +16,8 @@ nssd: ready; socket=/Users/developer/.local/state/nss/nssd.sock; state-dir=/User
 
 另一個 terminal 可執行 `nssd list`；若沒有 session，會看到 `SESSION_ID\tATTACHED` 標題。
 
+每個新 session 都會從 authenticated Unix user 的 home directory 開始，行為與 `ssh <host>` 的預設 working directory 一致；daemon service 自己的 working directory 不會影響 session 初始目錄。
+
 ## Service 管理
 
 不需手寫 plist 或 systemd unit：

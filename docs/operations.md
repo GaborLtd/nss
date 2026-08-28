@@ -56,6 +56,8 @@ nssd: ready; socket=/Users/developer/.local/state/nss/nssd.sock; state-dir=/User
 
 `nssd: ready` means the Unix socket exists, the state directory is initialized, and the daemon is waiting for an `nss` attach. The process does not return to the shell prompt; press `Ctrl-C` to stop a foreground daemon.
 
+Each new session starts in the authenticated Unix user's home directory, matching the default working directory of `ssh <host>`. The daemon's own service working directory does not change the session's initial directory.
+
 From another terminal, verify that the daemon accepts management requests:
 
 ```bash

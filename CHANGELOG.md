@@ -10,6 +10,8 @@ Important changes are recorded here. Versions follow Semantic Versioning.
 - Added cursor-preserving reconnect status rendering and compact transport diagnostics.
 - Added regression tests and operational documentation for reconnect display behavior.
 
+- New sessions now start in the authenticated Unix user's home directory, matching the default `ssh <host>` working directory.
+
 ## [0.2.1] - 2026-08-27
 
 - Added `nss update` and `nssd update`, which verify checksums and update both binaries.

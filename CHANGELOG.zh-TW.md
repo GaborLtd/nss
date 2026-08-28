@@ -10,6 +10,8 @@
 - 新增保存 cursor 位置的 reconnect status 顯示與壓縮後的 transport diagnostic。
 - 新增 reconnect 畫面行為的 regression tests 與操作文件。
 
+- 新 session 現在會從 authenticated Unix user 的 home directory 開始，與 `ssh <host>` 的預設 working directory 一致。
+
 ## [0.2.1] - 2026-08-27
 
 - 新增 `nss update` 與 `nssd update`；驗證 checksum 後同時更新兩個 binary。

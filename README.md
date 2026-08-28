@@ -169,3 +169,15 @@ go vet ./...
 go test -race -cover ./...
 go build ./cmd/nss ./cmd/nssd
 ```
+The installer downloads the platform archive from a `gaborltd/nss` GitHub Release, verifies SHA-256, and installs both `nss` and `nssd` into `~/.local/bin`. A future custom domain can expose the same script as `https://YOUR-DOMAIN.example/nss_install.sh`.
+
+After installation, update both binaries directly without downloading the installer again:
+
+```bash
+nss update
+nssd update
+```
+
+You can pin a version, for example `nss update --version v0.2.1`. Updating replaces the binaries but does not restart a running `nssd serve`; use launchd, systemd, or a manual restart to load the new version.
+
+Like a normal `ssh <host>` login, a new remote session starts in the authenticated user's home directory.

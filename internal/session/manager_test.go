@@ -56,6 +56,53 @@ func TestAttachRunsShellAndReturnsOutput(t *testing.T) {
 	}
 }
 
+func TestAttachStartsShellInHomeDirectory(t *testing.T) {
+	homeDir := t.TempDir()
+	m, err := NewManager(Config{
+		StateDir:     t.TempDir(),
+		HomeDir:      homeDir,
+		DefaultShell: "/bin/sh",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.CloseAll()
+
+	att, _, err := m.Attach(protocol.OpenRequest{
+		SessionID: "home-directory",
+		Secret:    "test-secret",
+		Rows:      24,
+		Cols:      80,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer att.Detach()
+
+	if err := att.WriteInput([]byte("pwd; exit\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	var output bytes.Buffer
+	deadline := time.After(3 * time.Second)
+	for {
+		select {
+		case frame, ok := <-att.Frames():
+			if !ok || frame.Type == protocol.TypeClose {
+				if !bytes.Contains(output.Bytes(), []byte(homeDir)) {
+					t.Fatalf("shell output = %q, expected home directory %q", output.String(), homeDir)
+				}
+				return
+			}
+			if frame.Type == protocol.TypeData {
+				output.Write(frame.Payload)
+			}
+		case <-deadline:
+			t.Fatalf("timed out waiting for shell output; got %q", output.String())
+		}
+	}
+}
+
 func TestAttachRejectsSecondClient(t *testing.T) {
 	m, err := NewManager(Config{StateDir: t.TempDir(), DefaultShell: "/bin/sh"})
 	if err != nil {

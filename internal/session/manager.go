@@ -31,6 +31,7 @@ var (
 
 type Config struct {
 	StateDir      string
+	HomeDir       string
 	DefaultShell  string
 	MaxSpoolBytes int64
 	InitialRows   uint16
@@ -81,11 +82,14 @@ func (m *Manager) CloseAll() {
 }
 
 func NewManager(cfg Config) (*Manager, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("find home directory: %w", err)
+	}
+	if cfg.HomeDir == "" {
+		cfg.HomeDir = home
+	}
 	if cfg.StateDir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return nil, fmt.Errorf("find home directory: %w", err)
-		}
 		cfg.StateDir = filepath.Join(home, ".local", "state", "nss")
 	}
 	if cfg.DefaultShell == "" {
@@ -168,6 +172,7 @@ func (m *Manager) newSession(req protocol.OpenRequest) (*Session, error) {
 		shell = m.cfg.DefaultShell
 	}
 	cmd := exec.Command(shell)
+	cmd.Dir = m.cfg.HomeDir
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "NSS_SESSION_ID="+req.SessionID)
 
 	dir := filepath.Join(m.cfg.StateDir, "sessions", req.SessionID)
