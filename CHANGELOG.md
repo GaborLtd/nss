@@ -4,6 +4,12 @@ Important changes are recorded here. Versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-29
+
+- Prevented multi-line SSH diagnostics and reconnect messages from corrupting the interactive terminal view.
+- Added cursor-preserving reconnect status rendering and compact transport diagnostics.
+- Added regression tests and operational documentation for reconnect display behavior.
+
 ## [0.2.1] - 2026-08-27
 
 - Added `nss update` and `nssd update`, which verify checksums and update both binaries.

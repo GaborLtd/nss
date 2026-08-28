@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-29
+
+- 修正多行 SSH diagnostic 與 reconnect 訊息混入 interactive terminal，造成畫面看似損壞的問題。
+- 新增保存 cursor 位置的 reconnect status 顯示與壓縮後的 transport diagnostic。
+- 新增 reconnect 畫面行為的 regression tests 與操作文件。
+
 ## [0.2.1] - 2026-08-27
 
 - 新增 `nss update` 與 `nssd update`；驗證 checksum 後同時更新兩個 binary。
