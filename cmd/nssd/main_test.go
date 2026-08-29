@@ -10,6 +10,8 @@ import (
 	"github.com/gaborltd/nss/internal/session"
 )
 
+const testIOTimeout = 10 * time.Second
+
 func TestRunServeReadyMessageUsesConfiguredPaths(t *testing.T) {
 	// 這個測試確認 daemon ready 訊息包含實際設定，方便手動診斷。
 	socketPath := "/tmp/nss-test/nssd.sock"
@@ -38,7 +40,7 @@ func TestHandleAttachRoundTrip(t *testing.T) {
 	serverConn, clientConn := net.Pipe()
 	defer clientConn.Close()
 	go handleAttach(serverConn, m)
-	_ = clientConn.SetDeadline(time.Now().Add(3 * time.Second))
+	_ = clientConn.SetDeadline(time.Now().Add(testIOTimeout))
 
 	open, err := protocol.EncodeOpen(protocol.OpenRequest{
 		SessionID: "handler-test",
@@ -99,7 +101,7 @@ func TestHandleAdminListAndClose(t *testing.T) {
 
 	serverConn, clientConn := net.Pipe()
 	go handleAttach(serverConn, m)
-	_ = clientConn.SetDeadline(time.Now().Add(3 * time.Second))
+	_ = clientConn.SetDeadline(time.Now().Add(testIOTimeout))
 	if err := protocol.Write(clientConn, protocol.Frame{Type: protocol.TypeAdminList}); err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +120,7 @@ func TestHandleAdminListAndClose(t *testing.T) {
 
 	serverConn, clientConn = net.Pipe()
 	go handleAttach(serverConn, m)
-	_ = clientConn.SetDeadline(time.Now().Add(3 * time.Second))
+	_ = clientConn.SetDeadline(time.Now().Add(testIOTimeout))
 	closeFrame, err := protocol.EncodeAdminClose(protocol.AdminCloseRequest{SessionID: "admin-session"})
 	if err != nil {
 		t.Fatal(err)

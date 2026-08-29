@@ -8,6 +8,7 @@
 
 - `nssd service` 指令現在會拒絕以 root 執行，並明確說明必須使用 user-level service context，避免產生 root 擁有的 LaunchAgent file 與難以判讀的 macOS bootstrap error。
 - macOS LaunchAgent 在 user domain 回傳 generic bootstrap error 時，現在會繼續 fallback 到 GUI domain。
+- 延長 PTY integration test 在 race detector runner 上的 timeout，避免 CI 因 runner 負載偶發失敗。
 
 ## [0.2.3] - 2026-08-29
 
