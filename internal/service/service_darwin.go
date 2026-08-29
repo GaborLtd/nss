@@ -5,12 +5,12 @@ package service
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 )
 
 const launchdLabel = "com.gaborltd.nssd"
@@ -111,24 +111,20 @@ func launchdServiceDomain() string {
 }
 
 func bootstrapLaunchAgent(path string) error {
-	var firstErr error
+	return bootstrapLaunchAgentWith(runLaunchctl, path)
+}
+
+func bootstrapLaunchAgentWith(run func(...string) error, path string) error {
+	var errs []error
 	for _, domain := range launchdDomainCandidates() {
-		err := runLaunchctl("bootstrap", domain, path)
+		err := run("bootstrap", domain, path)
 		if err == nil {
 			return nil
 		}
-		if firstErr == nil {
-			firstErr = err
-		}
-		if !isUnsupportedLaunchdDomain(err) {
-			return err
-		}
+		// macOS 可能在 user domain 回傳 generic error 5，但 GUI domain 仍可用。
+		errs = append(errs, fmt.Errorf("%s: %w", domain, err))
 	}
-	return firstErr
-}
-
-func isUnsupportedLaunchdDomain(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "Domain does not support specified action")
+	return errors.Join(errs...)
 }
 
 func runLaunchctl(args ...string) error {

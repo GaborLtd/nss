@@ -32,11 +32,38 @@ func TestLaunchdDomainCandidatesPreferUserDomain(t *testing.T) {
 	}
 }
 
-func TestIsUnsupportedLaunchdDomain(t *testing.T) {
-	if !isUnsupportedLaunchdDomain(errors.New("exit status 125: Domain does not support specified action")) {
-		t.Fatal("expected error 125 to be recognized as an unsupported domain")
+func TestBootstrapLaunchAgentFallsBackToGUIDomain(t *testing.T) {
+	domains := launchdDomainCandidates()
+	var calls [][]string
+	err := bootstrapLaunchAgentWith(func(args ...string) error {
+		calls = append(calls, append([]string(nil), args...))
+		if args[1] == domains[0] {
+			return errors.New("exit status 5: Input/output error")
+		}
+		return nil
+	}, "/tmp/com.gaborltd.nssd.plist")
+	if err != nil {
+		t.Fatalf("bootstrapLaunchAgentWith() = %v, want success after fallback", err)
 	}
-	if isUnsupportedLaunchdDomain(errors.New("exit status 5: Input/output error")) {
-		t.Fatal("did not expect unrelated launchctl error to be recognized")
+	if len(calls) != 2 {
+		t.Fatalf("launchctl calls = %#v, want one call per domain", calls)
+	}
+	if calls[0][0] != "bootstrap" || calls[0][1] != domains[0] {
+		t.Fatalf("first launchctl call = %#v, want user domain bootstrap", calls[0])
+	}
+	if calls[1][0] != "bootstrap" || calls[1][1] != domains[1] {
+		t.Fatalf("second launchctl call = %#v, want GUI domain bootstrap", calls[1])
+	}
+}
+
+func TestBootstrapLaunchAgentReportsBothDomainErrors(t *testing.T) {
+	err := bootstrapLaunchAgentWith(func(args ...string) error {
+		return errors.New("exit status 5: Input/output error")
+	}, "/tmp/com.gaborltd.nssd.plist")
+	message := err.Error()
+	for _, domain := range launchdDomainCandidates() {
+		if !strings.Contains(message, domain) {
+			t.Fatalf("error = %q, missing domain %q", message, domain)
+		}
 	}
 }
