@@ -4,6 +4,8 @@ Important changes are recorded here. Versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-08-29
+
 - Reject `nssd service` commands run as root and document the required user-level service context, preventing root-owned LaunchAgent files and confusing macOS bootstrap errors.
 - Retry macOS LaunchAgent registration in the GUI domain when the user domain returns a generic bootstrap error.
 
