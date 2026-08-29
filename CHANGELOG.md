@@ -4,6 +4,10 @@ Important changes are recorded here. Versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-08-29
+
+- Mark the macOS LaunchAgent as valid for both Background and Aqua sessions so it can bootstrap from SSH-only and GUI login environments.
+
 ## [0.2.4] - 2026-08-29
 
 - Reject `nssd service` commands run as root and document the required user-level service context, preventing root-owned LaunchAgent files and confusing macOS bootstrap errors.

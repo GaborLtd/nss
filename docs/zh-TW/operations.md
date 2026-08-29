@@ -39,7 +39,7 @@ sudo chmod 600 "$HOME/Library/LaunchAgents/com.gaborltd.nssd.plist"
 nssd service install
 ```
 
-macOS 使用 LaunchAgent：`~/Library/LaunchAgents/com.gaborltd.nssd.plist`；在 SSH/headless 情境優先使用 `user/<uid>` launchd domain，必要時 fallback 到 `gui/<uid>`，也能辨識兩種 domain 中既有的 service。Linux 使用 systemd user service：`~/.config/systemd/user/nssd.service`。Windows service backend 尚未支援。Linux 若要在 logout 後保持服務，可使用 `loginctl enable-linger "$USER"`。
+macOS 使用 LaunchAgent：`~/Library/LaunchAgents/com.gaborltd.nssd.plist`，並標記為同時支援 `Background` 與 `Aqua` session；在 SSH/headless 情境優先使用 `user/<uid>` launchd domain，必要時 fallback 到 `gui/<uid>`，也能辨識兩種 domain 中既有的 service。Linux 使用 systemd user service：`~/.config/systemd/user/nssd.service`。Windows service backend 尚未支援。Linux 若要在 logout 後保持服務，可使用 `loginctl enable-linger "$USER"`。
 
 ## SSH smoke test
 

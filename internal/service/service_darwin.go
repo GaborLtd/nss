@@ -156,6 +156,7 @@ func renderLaunchdPlist(executablePath, logDir string) []byte {
 	buffer.WriteString("</string>\n<key>ProgramArguments</key><array><string>")
 	write(executablePath)
 	buffer.WriteString("</string><string>serve</string></array>\n")
+	buffer.WriteString("<key>LimitLoadToSessionType</key><array><string>Background</string><string>Aqua</string></array>\n")
 	buffer.WriteString("<key>RunAtLoad</key><true/><key>KeepAlive</key><true/>\n")
 	buffer.WriteString("<key>StandardOutPath</key><string>")
 	write(filepath.Join(logDir, "nssd.stdout.log"))

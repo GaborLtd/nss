@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-08-29
+
+- 將 macOS LaunchAgent 標記為同時支援 Background 與 Aqua session，讓它能在 SSH-only 與 GUI login 環境註冊。
+
 ## [0.2.4] - 2026-08-29
 
 - `nssd service` 指令現在會拒絕以 root 執行，並明確說明必須使用 user-level service context，避免產生 root 擁有的 LaunchAgent file 與難以判讀的 macOS bootstrap error。
