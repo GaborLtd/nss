@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- 修正 macOS service registration 在 SSH/headless session 失敗的問題：優先使用 user launchd domain，GUI domain 可用時再 fallback。
+
 ## [0.2.2] - 2026-08-29
 
 - 修正多行 SSH diagnostic 與 reconnect 訊息混入 interactive terminal，造成畫面看似損壞的問題。

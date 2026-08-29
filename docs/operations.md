@@ -38,7 +38,7 @@ nssd service restart
 nssd service uninstall
 ```
 
-`install` generates and registers a user-level service for the operating system: a macOS LaunchAgent or a Linux systemd user service. `status` reports `active`, `inactive`, or `not-installed`, together with the service file path. These commands do not use root and do not manage another Unix user's daemon.
+`install` generates and registers a user-level service for the operating system: a macOS LaunchAgent or a Linux systemd user service. On macOS, nss prefers the `user/<uid>` launchd domain because it works from SSH and headless sessions; it falls back to `gui/<uid>` when necessary and recognizes existing services in either domain. `status` reports `active`, `inactive`, or `not-installed`, together with the service file path. These commands do not use root and do not manage another Unix user's daemon.
 
 On a Linux server, enable user lingering if the service must remain alive after logout:
 

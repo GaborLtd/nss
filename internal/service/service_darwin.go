@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 const launchdLabel = "com.gaborltd.nssd"
@@ -30,9 +31,8 @@ func install(config Config) (Status, error) {
 	if err := atomicWrite(path, content, 0600); err != nil {
 		return Status{}, err
 	}
-	loaded := launchdLoaded()
-	if !loaded {
-		if err := runLaunchctl("bootstrap", launchdDomain(), path); err != nil {
+	if launchdServiceDomain() == "" {
+		if err := bootstrapLaunchAgent(path); err != nil {
 			return Status{}, fmt.Errorf("註冊 LaunchAgent 失敗: %w", err)
 		}
 	}
@@ -56,11 +56,12 @@ func restart(config Config) (Status, error) {
 	if !fileExists(path) {
 		return Status{}, fmt.Errorf("LaunchAgent 尚未安裝，請先執行 `nssd service install`")
 	}
-	if !launchdLoaded() {
-		if err := runLaunchctl("bootstrap", launchdDomain(), path); err != nil {
+	domain := launchdServiceDomain()
+	if domain == "" {
+		if err := bootstrapLaunchAgent(path); err != nil {
 			return Status{}, fmt.Errorf("啟動 LaunchAgent 失敗: %w", err)
 		}
-	} else if err := runLaunchctl("kickstart", "-k", launchdDomain()+"/"+launchdLabel); err != nil {
+	} else if err := runLaunchctl("kickstart", domain+"/"+launchdLabel); err != nil {
 		return Status{}, fmt.Errorf("重啟 LaunchAgent 失敗: %w", err)
 	}
 	return Status{Installed: true, Active: launchdLoaded(), UnitPath: path}, nil
@@ -71,8 +72,8 @@ func uninstall(config Config) (Status, error) {
 	if err != nil {
 		return Status{}, err
 	}
-	if launchdLoaded() {
-		if err := runLaunchctl("bootout", launchdDomain()+"/"+launchdLabel); err != nil {
+	if domain := launchdServiceDomain(); domain != "" {
+		if err := runLaunchctl("bootout", domain+"/"+launchdLabel); err != nil {
 			return Status{}, fmt.Errorf("停止 LaunchAgent 失敗: %w", err)
 		}
 	}
@@ -90,12 +91,44 @@ func unitPath() (string, error) {
 	return filepath.Join(home, "Library", "LaunchAgents", launchdLabel+".plist"), nil
 }
 
-func launchdDomain() string {
-	return "gui/" + strconv.Itoa(os.Getuid())
+func launchdDomainCandidates() []string {
+	uid := strconv.Itoa(os.Getuid())
+	// user domain 不依賴 GUI login，適合透過 SSH 管理 headless Mac。
+	return []string{"user/" + uid, "gui/" + uid}
 }
 
 func launchdLoaded() bool {
-	return exec.Command("launchctl", "print", launchdDomain()+"/"+launchdLabel).Run() == nil
+	return launchdServiceDomain() != ""
+}
+
+func launchdServiceDomain() string {
+	for _, domain := range launchdDomainCandidates() {
+		if exec.Command("launchctl", "print", domain+"/"+launchdLabel).Run() == nil {
+			return domain
+		}
+	}
+	return ""
+}
+
+func bootstrapLaunchAgent(path string) error {
+	var firstErr error
+	for _, domain := range launchdDomainCandidates() {
+		err := runLaunchctl("bootstrap", domain, path)
+		if err == nil {
+			return nil
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+		if !isUnsupportedLaunchdDomain(err) {
+			return err
+		}
+	}
+	return firstErr
+}
+
+func isUnsupportedLaunchdDomain(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "Domain does not support specified action")
 }
 
 func runLaunchctl(args ...string) error {
