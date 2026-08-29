@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- `nssd service` 指令現在會拒絕以 root 執行，並明確說明必須使用 user-level service context，避免產生 root 擁有的 LaunchAgent file 與難以判讀的 macOS bootstrap error。
+
 ## [0.2.3] - 2026-08-29
 
 - 修正 macOS service registration 在 SSH/headless session 失敗的問題：優先使用 user launchd domain，GUI domain 可用時再 fallback。

@@ -20,6 +20,9 @@ type Status struct {
 }
 
 func Install(config Config) (Status, error) {
+	if err := ensureNonRoot(); err != nil {
+		return Status{}, err
+	}
 	config, err := normalizeConfig(config)
 	if err != nil {
 		return Status{}, err
@@ -28,6 +31,9 @@ func Install(config Config) (Status, error) {
 }
 
 func StatusOf(config Config) (Status, error) {
+	if err := ensureNonRoot(); err != nil {
+		return Status{}, err
+	}
 	config, err := normalizeConfig(config)
 	if err != nil {
 		return Status{}, err
@@ -36,6 +42,9 @@ func StatusOf(config Config) (Status, error) {
 }
 
 func Restart(config Config) (Status, error) {
+	if err := ensureNonRoot(); err != nil {
+		return Status{}, err
+	}
 	config, err := normalizeConfig(config)
 	if err != nil {
 		return Status{}, err
@@ -44,11 +53,25 @@ func Restart(config Config) (Status, error) {
 }
 
 func Uninstall(config Config) (Status, error) {
+	if err := ensureNonRoot(); err != nil {
+		return Status{}, err
+	}
 	config, err := normalizeConfig(config)
 	if err != nil {
 		return Status{}, err
 	}
 	return uninstall(config)
+}
+
+func ensureNonRoot() error {
+	return requireNonRoot(os.Geteuid())
+}
+
+func requireNonRoot(euid int) error {
+	if euid == 0 {
+		return errors.New("nssd service commands must run as the target user; do not use sudo")
+	}
+	return nil
 }
 
 func normalizeConfig(config Config) (Config, error) {

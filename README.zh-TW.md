@@ -73,6 +73,8 @@ nssd service install
 nssd service status
 ```
 
+請以目標 Unix user 執行這些指令，不要加 `sudo`；service 屬於該 user 的 session 與資料目錄。
+
 macOS 使用 LaunchAgent，Linux 使用 systemd user service。測試時也可以前景執行：
 
 ```bash

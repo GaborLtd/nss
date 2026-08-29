@@ -73,6 +73,8 @@ nssd service install
 nssd service status
 ```
 
+Run these commands as the target Unix user; do not use `sudo`. The service belongs to that user's session and data directory.
+
 macOS uses a LaunchAgent. Linux uses a systemd user service. If you prefer to run it in the foreground while testing:
 
 ```bash

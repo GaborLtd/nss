@@ -29,6 +29,16 @@ nssd service restart
 nssd service uninstall
 ```
 
+請不要使用 `sudo` 執行這些指令。它們會為目前帳號註冊 user-level service；使用 `sudo` 會改變 launchd/systemd 的 user context，並可能在 user 的 home directory 留下由 root 擁有的 service file。
+
+如果不小心在 macOS 使用了 `sudo`，請先修正產生的 file ownership，再以目標 user 重新安裝：
+
+```bash
+sudo chown "$(id -un):$(id -gn)" "$HOME/Library/LaunchAgents/com.gaborltd.nssd.plist"
+sudo chmod 600 "$HOME/Library/LaunchAgents/com.gaborltd.nssd.plist"
+nssd service install
+```
+
 macOS 使用 LaunchAgent：`~/Library/LaunchAgents/com.gaborltd.nssd.plist`；在 SSH/headless 情境優先使用 `user/<uid>` launchd domain，必要時 fallback 到 `gui/<uid>`，也能辨識兩種 domain 中既有的 service。Linux 使用 systemd user service：`~/.config/systemd/user/nssd.service`。Windows service backend 尚未支援。Linux 若要在 logout 後保持服務，可使用 `loginctl enable-linger "$USER"`。
 
 ## SSH smoke test

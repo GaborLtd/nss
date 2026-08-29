@@ -3,8 +3,19 @@ package service
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestRequireNonRoot(t *testing.T) {
+	if err := requireNonRoot(501); err != nil {
+		t.Fatalf("requireNonRoot(non-root) = %v, want nil", err)
+	}
+	err := requireNonRoot(0)
+	if err == nil || !strings.Contains(err.Error(), "do not use sudo") {
+		t.Fatalf("requireNonRoot(root) = %v, want a sudo guidance error", err)
+	}
+}
 
 func TestNormalizeConfigResolvesExecutable(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "nssd")
