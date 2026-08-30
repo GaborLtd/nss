@@ -4,6 +4,7 @@
 
 ## [Unreleased]
 
+- 明確將目前 user 的 SSH config 傳給 OpenSSH，讓 reconnect 期間的 host alias 能穩定解析。
 - 支援 initial connection 與 automatic reconnect 期間的 interactive SSH passphrase prompt，且不保存 passphrase。
 
 ## [0.2.5] - 2026-08-29

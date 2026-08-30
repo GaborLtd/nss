@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,22 @@ func TestRemoteAttachCommandAddsUserLocalBin(t *testing.T) {
 	}
 	if !strings.HasSuffix(remoteAttachCommand, "exec nssd attach") {
 		t.Fatalf("remote attach command = %q, expected nssd attach", remoteAttachCommand)
+	}
+}
+
+func TestUserSSHConfigPathUsesCurrentUserConfig(t *testing.T) {
+	home := t.TempDir()
+	sshDir := filepath.Join(home, ".ssh")
+	if err := os.MkdirAll(sshDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(sshDir, "config")
+	if err := os.WriteFile(configPath, []byte("Host mdev3\n  HostName 192.168.19.102\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+	if got := userSSHConfigPath(); got != configPath {
+		t.Fatalf("userSSHConfigPath() = %q, want %q", got, configPath)
 	}
 }
 

@@ -179,6 +179,8 @@ nss office-mini
 
 During a normal interactive session, SSH diagnostic output is captured instead of being written directly into the remote PTY view. If the transport disconnects, `nss` renders a short cursor-preserving reconnect status line and clears it before the next connection attempt. This keeps the remote prompt and terminal layout readable while still showing that reconnect is in progress.
 
+`nss` explicitly passes the current user's `~/.ssh/config` to OpenSSH when that file exists, so host aliases such as `mdev3` use the same configuration as `/usr/bin/ssh mdev3`.
+
 ### SSH passphrase prompts
 
 During an interactive connection or reconnect, if OpenSSH requests a key passphrase, `nss` displays the prompt in the current terminal. Type the passphrase and press Enter; input is sent only to the SSH authentication process and is not stored in the session spool or logs. Backspace and `Ctrl-C` are supported.

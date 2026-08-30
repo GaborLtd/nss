@@ -57,6 +57,8 @@ command -v nssd
 
 正常 interactive session 中，SSH diagnostic 不會直接混入 remote PTY 畫面。transport 斷線時，`nss` 會顯示短暫且保存 cursor 位置的 reconnect 狀態列，下一次連線開始前清除，讓 remote prompt 與 terminal layout 保持可讀。
 
+如果目前 user 的 `~/.ssh/config` 存在，`nss` 會明確將它傳給 OpenSSH，因此像 `mdev3` 這類 host alias 會使用與 `/usr/bin/ssh mdev3` 相同的設定。
+
 ### SSH passphrase prompt
 
 在 interactive connection 或 reconnect 期間，如果 OpenSSH 要求 key passphrase，`nss` 會在目前 terminal 顯示 prompt。輸入 passphrase 後按 Enter；輸入只會傳給 SSH authentication process，不會保存到 session spool 或 log。支援 Backspace 與 `Ctrl-C`。

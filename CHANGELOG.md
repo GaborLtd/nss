@@ -4,6 +4,7 @@ Important changes are recorded here. Versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+- Pass the current user's SSH config explicitly to OpenSSH so host aliases resolve consistently during reconnect.
 - Support interactive SSH passphrase prompts during initial connection and automatic reconnect without storing the passphrase.
 
 ## [0.2.5] - 2026-08-29

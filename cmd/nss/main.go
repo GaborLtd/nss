@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -216,7 +217,12 @@ func runConnection(config clientConfig, inputCh <-chan []byte, inputClosed <-cha
 	// 丟棄斷線期間最多暫存的一筆輸入，避免重新連線後盲送舊指令。
 	drainInput(inputCh)
 
-	cmd := exec.Command("ssh", "-T", config.host, remoteAttachCommand)
+	sshArgs := []string{"-T"}
+	if configPath := userSSHConfigPath(); configPath != "" {
+		sshArgs = append(sshArgs, "-F", configPath)
+	}
+	sshArgs = append(sshArgs, config.host, remoteAttachCommand)
+	cmd := exec.Command("ssh", sshArgs...)
 	var askpass *askpassBridge
 	var err error
 	if !config.noTTY && term.IsTerminal(int(os.Stdin.Fd())) {
@@ -350,6 +356,18 @@ func runConnection(config clientConfig, inputCh <-chan []byte, inputClosed <-cha
 			return errTerminated
 		}
 	}
+}
+
+func userSSHConfigPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	path := filepath.Join(home, ".ssh", "config")
+	if info, err := os.Stat(path); err != nil || info.IsDir() {
+		return ""
+	}
+	return path
 }
 
 func readPassphrase(inputCh <-chan []byte, inputClosed <-chan struct{}, interrupts <-chan os.Signal, promptWriter io.Writer, prompt string) (string, error) {
