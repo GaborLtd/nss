@@ -103,6 +103,33 @@ During reconnect, `nss` keeps SSH diagnostics out of the live PTY view and shows
 
 Do not type commands while disconnected. `nss` intentionally does not queue and replay arbitrary raw keyboard input, because replaying stale input could run an unintended command.
 
+### Identify an nss shell
+
+The shell started by `nss` receives these environment variables:
+
+| Variable | Value | Purpose |
+|---|---|---|
+| `NSS_SESSION` | `1` | Identifies the shell as an `nss` session. |
+| `NSS_SESSION_ID` | The session ID | Identifies the current `nss` session for display and diagnostics. It is not an authorization secret. |
+
+To show an indicator in zsh, add this to the end of the remote `~/.zshrc`, after your prompt or theme configuration:
+
+```zsh
+if [[ -n "${NSS_SESSION:-}" ]]; then
+    PROMPT="[nss:${NSS_SESSION_ID[1,8]}] ${PROMPT}"
+fi
+```
+
+For bash, add the equivalent to the end of `~/.bashrc`:
+
+```bash
+if [[ -n "${NSS_SESSION:-}" ]]; then
+    PS1="[nss:${NSS_SESSION_ID:0:8}] ${PS1}"
+fi
+```
+
+Regular `ssh` sessions do not set `NSS_SESSION`, so the indicator is shown only for `nss`. If a prompt theme rewrites `PROMPT` or `PS1`, keep this snippet after that theme's initialization.
+
 ## How it compares
 
 | Tool | What it is good at | The nss difference |

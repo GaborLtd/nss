@@ -173,7 +173,10 @@ func (m *Manager) newSession(req protocol.OpenRequest) (*Session, error) {
 	}
 	cmd := exec.Command(shell)
 	cmd.Dir = m.cfg.HomeDir
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "NSS_SESSION_ID="+req.SessionID)
+	cmd.Env = os.Environ()
+	cmd.Env = setEnvironmentValue(cmd.Env, "TERM", "xterm-256color")
+	cmd.Env = setEnvironmentValue(cmd.Env, "NSS_SESSION", "1")
+	cmd.Env = setEnvironmentValue(cmd.Env, "NSS_SESSION_ID", req.SessionID)
 
 	dir := filepath.Join(m.cfg.StateDir, "sessions", req.SessionID)
 	if err := os.MkdirAll(dir, 0700); err != nil {
@@ -198,6 +201,17 @@ func (m *Manager) newSession(req protocol.OpenRequest) (*Session, error) {
 		s.finish()
 	}()
 	return s, nil
+}
+
+func setEnvironmentValue(env []string, key, value string) []string {
+	prefix := key + "="
+	for i, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			env[i] = prefix + value
+			return env
+		}
+	}
+	return append(env, prefix+value)
 }
 
 func (s *Session) attach(req protocol.OpenRequest) (*Attachment, []byte, error) {

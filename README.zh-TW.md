@@ -99,6 +99,33 @@ Reconnect 期間，`nss` 不會把 SSH diagnostic 直接混入 remote terminal �
 
 斷線期間不要輸入 command。為避免 stale input 造成誤執行，`nss` 不會保存並重送任意 raw keyboard input。
 
+### 辨識 nss shell
+
+由 `nss` 啟動的 shell 會收到以下環境變數：
+
+| 變數 | 值 | 用途 |
+|---|---|---|
+| `NSS_SESSION` | `1` | 表示目前 shell 是 `nss` session。 |
+| `NSS_SESSION_ID` | session ID | 用於顯示與診斷目前的 `nss` session；不是 authorization secret。 |
+
+若使用 zsh，請將以下內容加到 remote `~/.zshrc` 最後面，放在 prompt 或 theme 設定之後：
+
+```zsh
+if [[ -n "${NSS_SESSION:-}" ]]; then
+    PROMPT="[nss:${NSS_SESSION_ID[1,8]}] ${PROMPT}"
+fi
+```
+
+若使用 bash，請將以下內容加到 `~/.bashrc` 最後面：
+
+```bash
+if [[ -n "${NSS_SESSION:-}" ]]; then
+    PS1="[nss:${NSS_SESSION_ID:0:8}] ${PS1}"
+fi
+```
+
+一般 `ssh` session 不會設定 `NSS_SESSION`，因此只有 `nss` 會顯示這個標記。如果 prompt theme 會重新設定 `PROMPT` 或 `PS1`，請確保這段放在 theme 初始化之後。
+
 ## 與其他工具的差異
 
 - OpenSSH：標準且簡單，但 connection 中斷通常會結束 interactive shell。

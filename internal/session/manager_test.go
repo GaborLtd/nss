@@ -103,6 +103,54 @@ func TestAttachStartsShellInHomeDirectory(t *testing.T) {
 	}
 }
 
+func TestAttachExportsNSSSessionEnvironment(t *testing.T) {
+	t.Setenv("NSS_SESSION", "not-nss")
+	t.Setenv("NSS_SESSION_ID", "stale-id")
+
+	m, err := NewManager(Config{
+		StateDir:     t.TempDir(),
+		DefaultShell: "/bin/sh",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.CloseAll()
+
+	att, _, err := m.Attach(protocol.OpenRequest{
+		SessionID: "env-marker",
+		Secret:    "test-secret",
+		Rows:      24,
+		Cols:      80,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer att.Detach()
+
+	if err := att.WriteInput([]byte("printf '%s|%s' \"$NSS_SESSION\" \"$NSS_SESSION_ID\"; exit\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	var output bytes.Buffer
+	deadline := time.After(3 * time.Second)
+	for {
+		select {
+		case frame, ok := <-att.Frames():
+			if !ok || frame.Type == protocol.TypeClose {
+				if !bytes.Contains(output.Bytes(), []byte("1|env-marker")) {
+					t.Fatalf("shell environment output = %q, expected NSS_SESSION marker and session ID", output.String())
+				}
+				return
+			}
+			if frame.Type == protocol.TypeData {
+				output.Write(frame.Payload)
+			}
+		case <-deadline:
+			t.Fatalf("timed out waiting for shell output; got %q", output.String())
+		}
+	}
+}
+
 func TestAttachRejectsSecondClient(t *testing.T) {
 	m, err := NewManager(Config{StateDir: t.TempDir(), DefaultShell: "/bin/sh"})
 	if err != nil {

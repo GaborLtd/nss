@@ -192,6 +192,33 @@ ssh-add ~/.ssh/id_ed25519
 nss --no-tty office-mini
 ```
 
+### Shell environment and prompt integration
+
+Every shell created for an `nss` session receives:
+
+| Variable | Value | Notes |
+|---|---|---|
+| `NSS_SESSION` | `1` | Stable marker for shell configuration. |
+| `NSS_SESSION_ID` | The session ID | Suitable for display and diagnostics only; it is not the session secret. |
+
+For zsh, append this to the remote `~/.zshrc` after the prompt theme has been initialized:
+
+```zsh
+if [[ -n "${NSS_SESSION:-}" ]]; then
+    PROMPT="[nss:${NSS_SESSION_ID[1,8]}] ${PROMPT}"
+fi
+```
+
+For bash, append this to `~/.bashrc`:
+
+```bash
+if [[ -n "${NSS_SESSION:-}" ]]; then
+    PS1="[nss:${NSS_SESSION_ID:0:8}] ${PS1}"
+fi
+```
+
+Ordinary SSH shells do not receive `NSS_SESSION`, so this condition does not change their prompt. Prompt frameworks that rewrite `PROMPT` or `PS1` should load this snippet after their initialization.
+
 ## Session management
 
 Management commands use the same Unix socket and are available only to that Unix user:

@@ -70,6 +70,33 @@ ssh-add ~/.ssh/id_ed25519
 nss --no-tty office-mini
 ```
 
+### Shell 環境變數與 prompt
+
+每個由 `nss` 建立的 shell 都會收到：
+
+| 變數 | 值 | 說明 |
+|---|---|---|
+| `NSS_SESSION` | `1` | 可供 shell 設定使用的穩定 marker。 |
+| `NSS_SESSION_ID` | session ID | 僅適合顯示與診斷，不是 session secret。 |
+
+如果使用 zsh，請將以下內容加到 remote `~/.zshrc`，並放在 prompt theme 初始化之後：
+
+```zsh
+if [[ -n "${NSS_SESSION:-}" ]]; then
+    PROMPT="[nss:${NSS_SESSION_ID[1,8]}] ${PROMPT}"
+fi
+```
+
+如果使用 bash，請將以下內容加到 `~/.bashrc`：
+
+```bash
+if [[ -n "${NSS_SESSION:-}" ]]; then
+    PS1="[nss:${NSS_SESSION_ID:0:8}] ${PS1}"
+fi
+```
+
+一般 SSH shell 不會收到 `NSS_SESSION`，所以這個條件不會改變一般 SSH 的 prompt。如果 prompt framework 會重新設定 `PROMPT` 或 `PS1`，請將這段放在 framework 初始化之後。
+
 ## Session 管理與更新
 
 ```bash
