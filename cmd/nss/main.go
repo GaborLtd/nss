@@ -40,6 +40,12 @@ type frameEvent struct {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--ssh-askpass" {
+		if err := runSSHAskpass(); err != nil {
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "version") {
 		fmt.Println(version.String("nss"))
 		return
@@ -211,6 +217,17 @@ func runConnection(config clientConfig, inputCh <-chan []byte, inputClosed <-cha
 	drainInput(inputCh)
 
 	cmd := exec.Command("ssh", "-T", config.host, remoteAttachCommand)
+	var askpass *askpassBridge
+	var err error
+	if !config.noTTY && term.IsTerminal(int(os.Stdin.Fd())) {
+		askpass, err = newAskpassBridge()
+		if err != nil {
+			return err
+		}
+		cmd.Env = askpass.childEnvironment()
+		cmd.ExtraFiles = askpass.childFiles()
+		defer askpass.close()
+	}
 	var sshStderr strings.Builder
 	if config.noTTY || !term.IsTerminal(int(os.Stderr.Fd())) {
 		cmd.Stderr = io.MultiWriter(os.Stderr, &sshStderr)
@@ -229,7 +246,13 @@ func runConnection(config clientConfig, inputCh <-chan []byte, inputClosed <-cha
 	}
 	if err := cmd.Start(); err != nil {
 		_ = stdin.Close()
+		if askpass != nil {
+			askpass.closeChildFiles()
+		}
 		return err
+	}
+	if askpass != nil {
+		askpass.closeChildFiles()
 	}
 	waitCh := make(chan error, 1)
 	go func() { waitCh <- cmd.Wait() }()
@@ -261,9 +284,25 @@ func runConnection(config clientConfig, inputCh <-chan []byte, inputClosed <-cha
 	frames := make(chan frameEvent, 4)
 	go readFrames(stdout, frames)
 	opened := false
+	var askpassRequests <-chan string
+	if askpass != nil {
+		askpassRequests = askpass.requests
+	}
 
 	for {
 		select {
+		case prompt, ok := <-askpassRequests:
+			if !ok {
+				askpassRequests = nil
+				continue
+			}
+			passphrase, err := readPassphrase(inputCh, inputClosed, interrupts, os.Stderr, prompt)
+			if err != nil {
+				return err
+			}
+			if err := askpass.respond(passphrase); err != nil {
+				return errDisconnected
+			}
 		case event := <-frames:
 			if event.err != nil {
 				return classifySSHDisconnect(waitCh, sshStderr.String())
@@ -309,6 +348,40 @@ func runConnection(config clientConfig, inputCh <-chan []byte, inputClosed <-cha
 			return classifySSHExit(waitErr, sshStderr.String())
 		case <-interrupts:
 			return errTerminated
+		}
+	}
+}
+
+func readPassphrase(inputCh <-chan []byte, inputClosed <-chan struct{}, interrupts <-chan os.Signal, promptWriter io.Writer, prompt string) (string, error) {
+	if _, err := io.WriteString(promptWriter, prompt); err != nil {
+		return "", err
+	}
+	var passphrase []byte
+	for {
+		select {
+		case data := <-inputCh:
+			for _, character := range data {
+				switch character {
+				case '\r', '\n':
+					_, _ = io.WriteString(promptWriter, "\r\n")
+					return string(passphrase), nil
+				case 0x03:
+					_, _ = io.WriteString(promptWriter, "^C\r\n")
+					return "", errTerminated
+				case 0x08, 0x7f:
+					if len(passphrase) > 0 {
+						passphrase = passphrase[:len(passphrase)-1]
+					}
+				default:
+					if character >= 0x20 {
+						passphrase = append(passphrase, character)
+					}
+				}
+			}
+		case <-inputClosed:
+			return "", errTerminated
+		case <-interrupts:
+			return "", errTerminated
 		}
 	}
 }

@@ -98,6 +98,11 @@ For manual inspection, the plist has this shape:
     <string>/Users/developer/.local/bin/nssd</string>
     <string>serve</string>
   </array>
+  <key>LimitLoadToSessionType</key>
+  <array>
+    <string>Background</string>
+    <string>Aqua</string>
+  </array>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
@@ -173,6 +178,17 @@ nss office-mini
 ```
 
 During a normal interactive session, SSH diagnostic output is captured instead of being written directly into the remote PTY view. If the transport disconnects, `nss` renders a short cursor-preserving reconnect status line and clears it before the next connection attempt. This keeps the remote prompt and terminal layout readable while still showing that reconnect is in progress.
+
+### SSH passphrase prompts
+
+During an interactive connection or reconnect, if OpenSSH requests a key passphrase, `nss` displays the prompt in the current terminal. Type the passphrase and press Enter; input is sent only to the SSH authentication process and is not stored in the session spool or logs. Backspace and `Ctrl-C` are supported.
+
+Non-interactive mode (`--no-tty`) cannot display a prompt. Load the key into an SSH agent before using it:
+
+```bash
+ssh-add ~/.ssh/id_ed25519
+nss --no-tty office-mini
+```
 
 ## Session management
 

@@ -89,7 +89,7 @@ nssd serve
 nss office-mini
 ```
 
-不需要新的 host database、tunnel 設定或 authentication system。
+不需要新的 host database、tunnel 設定或 authentication system。Reconnect 期間如果 OpenSSH 需要 key passphrase，`nss` 也會在目前 terminal 顯示 prompt，並只將輸入轉交給該 SSH process；passphrase 不會保存到 session 或 log。非互動式 `--no-tty` 使用仍需要 `ssh-agent`。
 
 ### 4. 讓 connection 自動恢復
 

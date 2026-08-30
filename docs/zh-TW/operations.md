@@ -57,6 +57,17 @@ command -v nssd
 
 正常 interactive session 中，SSH diagnostic 不會直接混入 remote PTY 畫面。transport 斷線時，`nss` 會顯示短暫且保存 cursor 位置的 reconnect 狀態列，下一次連線開始前清除，讓 remote prompt 與 terminal layout 保持可讀。
 
+### SSH passphrase prompt
+
+在 interactive connection 或 reconnect 期間，如果 OpenSSH 要求 key passphrase，`nss` 會在目前 terminal 顯示 prompt。輸入 passphrase 後按 Enter；輸入只會傳給 SSH authentication process，不會保存到 session spool 或 log。支援 Backspace 與 `Ctrl-C`。
+
+非互動模式（`--no-tty`）無法顯示 prompt，請先將 key 載入 SSH agent：
+
+```bash
+ssh-add ~/.ssh/id_ed25519
+nss --no-tty office-mini
+```
+
 ## Session 管理與更新
 
 ```bash

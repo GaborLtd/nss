@@ -4,6 +4,8 @@ Important changes are recorded here. Versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+- Support interactive SSH passphrase prompts during initial connection and automatic reconnect without storing the passphrase.
+
 ## [0.2.5] - 2026-08-29
 
 - Mark the macOS LaunchAgent as valid for both Background and Aqua sessions so it can bootstrap from SSH-only and GUI login environments.

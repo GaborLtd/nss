@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"errors"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRemoteAttachCommandAddsUserLocalBin(t *testing.T) {
@@ -75,5 +77,69 @@ func TestClearReconnectStatusPreservesCursorWithANSI(t *testing.T) {
 	want := "\x1b7\r\n\x1b[2K\x1b8"
 	if output.String() != want {
 		t.Fatalf("clear output = %q, want %q", output.String(), want)
+	}
+}
+
+func TestAskpassFrameRoundTrip(t *testing.T) {
+	var buffer bytes.Buffer
+	if err := writeAskpassFrame(&buffer, []byte("Enter passphrase: ")); err != nil {
+		t.Fatal(err)
+	}
+	got, err := readAskpassFrame(&buffer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "Enter passphrase: " {
+		t.Fatalf("askpass payload = %q", got)
+	}
+}
+
+func TestAskpassBridgeRoundTrip(t *testing.T) {
+	bridge, err := newAskpassBridge()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bridge.close()
+
+	go func() {
+		_ = writeAskpassFrame(bridge.childRequestWriter, []byte("SSH passphrase: "))
+	}()
+	select {
+	case prompt := <-bridge.requests:
+		if prompt != "SSH passphrase: " {
+			t.Fatalf("askpass prompt = %q", prompt)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for askpass prompt")
+	}
+	if err := bridge.respond("secret"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := readAskpassFrame(bridge.childResponseReader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "secret" {
+		t.Fatalf("askpass response = %q", got)
+	}
+}
+
+func TestReadPassphraseConsumesRawInputWithoutEchoingSecret(t *testing.T) {
+	input := make(chan []byte, 2)
+	inputClosed := make(chan struct{})
+	interrupts := make(chan os.Signal)
+	input <- []byte("sec")
+	input <- []byte("ret\r")
+
+	var prompt bytes.Buffer
+	passphrase, err := readPassphrase(input, inputClosed, interrupts, &prompt, "Enter passphrase: ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if passphrase != "secret" {
+		t.Fatalf("passphrase = %q, want secret", passphrase)
+	}
+	if prompt.String() != "Enter passphrase: \r\n" {
+		t.Fatalf("prompt output = %q, secret was echoed", prompt.String())
 	}
 }

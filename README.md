@@ -93,6 +93,8 @@ nss office-mini
 
 No new host database, tunnel configuration, or authentication system is required. `nss` invokes system OpenSSH and uses your normal `~/.ssh/config`.
 
+Interactive SSH authentication is also supported during reconnect. If OpenSSH needs a key passphrase, `nss` shows the prompt in the current terminal and forwards the response only to that SSH process. The passphrase is not saved in the session or logs. Non-interactive `--no-tty` use still requires an `ssh-agent`.
+
 ### 4. Let the connection recover
 
 If the laptop lid closes or the network changes, the tab remains open and `nss` enters reconnect mode. When the network returns, it attaches to the original remote PTY and resumes the same shell.

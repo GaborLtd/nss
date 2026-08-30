@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- 支援 initial connection 與 automatic reconnect 期間的 interactive SSH passphrase prompt，且不保存 passphrase。
+
 ## [0.2.5] - 2026-08-29
 
 - 將 macOS LaunchAgent 標記為同時支援 Background 與 Aqua session，讓它能在 SSH-only 與 GUI login 環境註冊。
