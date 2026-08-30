@@ -177,7 +177,7 @@ The second SSH command waits for protocol bytes and is not intended for an inter
 nss office-mini
 ```
 
-During a normal interactive session, SSH diagnostic output is captured instead of being written directly into the remote PTY view. If the transport disconnects, `nss` renders a short cursor-preserving reconnect status line and clears it before the next connection attempt. This keeps the remote prompt and terminal layout readable while still showing that reconnect is in progress.
+During a normal interactive session, SSH diagnostic output is captured instead of being written directly into the remote PTY view. If the transport disconnects, `nss` renders a short cursor-preserving reconnect status line above the current prompt, without scrolling the terminal, and clears it before the next connection attempt.
 
 `nss` explicitly passes the current user's `~/.ssh/config` to OpenSSH when that file exists, so host aliases such as `mdev3` use the same configuration as `/usr/bin/ssh mdev3`.
 

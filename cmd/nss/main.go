@@ -511,8 +511,10 @@ func writeReconnectStatus(w io.Writer, message string, ansi bool) error {
 		_, err := fmt.Fprintf(w, "[nss] %s\n", message)
 		return err
 	}
-	// 儲存 remote cursor，在下一行顯示狀態，再還原 cursor，避免污染目前的 prompt/畫面。
-	_, err := fmt.Fprintf(w, "\x1b7\r\n\x1b[2K[nss] %s\r\n\x1b8", message)
+	// 儲存 remote cursor，在上方一行顯示狀態，再還原 cursor。
+	// 不往下換行，避免 prompt 在 terminal 底部時觸發 scroll，造成後續全螢幕程式畫面錯位。
+	message = fitReconnectStatus(message, reconnectStatusColumns())
+	_, err := fmt.Fprintf(w, "\x1b7\x1b[1A\r\x1b[2K[nss] %s\x1b8", message)
 	return err
 }
 
@@ -520,7 +522,27 @@ func clearReconnectStatus(w io.Writer, ansi bool) error {
 	if !ansi {
 		return nil
 	}
-	// 狀態列位於 remote cursor 的下一行；清除後還原原本的 cursor 位置。
-	_, err := io.WriteString(w, "\x1b7\r\n\x1b[2K\x1b8")
+	// 狀態列位於 remote cursor 的上一行；清除後還原原本的 cursor 位置。
+	_, err := io.WriteString(w, "\x1b7\x1b[1A\r\x1b[2K\x1b8")
 	return err
+}
+
+func reconnectStatusColumns() int {
+	if _, cols, err := term.GetSize(int(os.Stderr.Fd())); err == nil && cols > 0 {
+		return cols
+	}
+	return 80
+}
+
+func fitReconnectStatus(message string, columns int) string {
+	const prefixWidth = len("[nss] ")
+	if columns <= prefixWidth {
+		return ""
+	}
+	maxRunes := columns - prefixWidth
+	runes := []rune(message)
+	if len(runes) <= maxRunes {
+		return message
+	}
+	return string(runes[:maxRunes])
 }

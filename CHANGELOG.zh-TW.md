@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- 修正 reconnect 狀態列觸發 terminal scroll，避免 reconnect 後 cursor 與全螢幕程式畫面錯位。
+
 ## [0.2.6] - 2026-08-30
 
 - 明確將目前 user 的 SSH config 傳給 OpenSSH，讓 reconnect 期間的 host alias 能穩定解析。

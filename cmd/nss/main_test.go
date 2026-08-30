@@ -70,7 +70,7 @@ func TestReconnectStatusPreservesCursorWithANSI(t *testing.T) {
 	if err := writeReconnectStatus(&output, "retrying in 1s: ssh transport disconnected", true); err != nil {
 		t.Fatalf("writeReconnectStatus() error = %v", err)
 	}
-	want := "\x1b7\r\n\x1b[2K[nss] retrying in 1s: ssh transport disconnected\r\n\x1b8"
+	want := "\x1b7\x1b[1A\r\x1b[2K[nss] retrying in 1s: ssh transport disconnected\x1b8"
 	if output.String() != want {
 		t.Fatalf("status output = %q, want %q", output.String(), want)
 	}
@@ -91,9 +91,18 @@ func TestClearReconnectStatusPreservesCursorWithANSI(t *testing.T) {
 	if err := clearReconnectStatus(&output, true); err != nil {
 		t.Fatalf("clearReconnectStatus() error = %v", err)
 	}
-	want := "\x1b7\r\n\x1b[2K\x1b8"
+	want := "\x1b7\x1b[1A\r\x1b[2K\x1b8"
 	if output.String() != want {
 		t.Fatalf("clear output = %q, want %q", output.String(), want)
+	}
+}
+
+func TestFitReconnectStatusAvoidsWrapping(t *testing.T) {
+	if got := fitReconnectStatus("123456789", 12); got != "123456" {
+		t.Fatalf("fitReconnectStatus() = %q, want %q", got, "123456")
+	}
+	if got := fitReconnectStatus("短訊息", 80); got != "短訊息" {
+		t.Fatalf("fitReconnectStatus() = %q, want original message", got)
 	}
 }
 

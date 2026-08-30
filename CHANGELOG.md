@@ -4,6 +4,8 @@ Important changes are recorded here. Versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+- Avoid scrolling the terminal while rendering reconnect status, preventing cursor and full-screen application display corruption after reconnect.
+
 ## [0.2.6] - 2026-08-30
 
 - Pass the current user's SSH config explicitly to OpenSSH so host aliases resolve consistently during reconnect.

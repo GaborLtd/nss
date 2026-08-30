@@ -95,7 +95,7 @@ nss office-mini
 
 筆電蓋上或網路切換時，tab 會保持開啟並進入 reconnect mode。網路回來後會接回原本的 remote PTY 與 shell。
 
-Reconnect 期間，`nss` 不會把 SSH diagnostic 直接混入 remote terminal 畫面，而是顯示短暫且會保存 cursor 位置的狀態列。下一次連線開始時狀態列會清除，不會永久覆蓋 remote prompt 或 terminal layout。
+Reconnect 期間，`nss` 不會把 SSH diagnostic 直接混入 remote terminal 畫面，而是在目前 prompt 上方顯示短暫且會保存 cursor 位置的狀態列。它不會讓 terminal scroll，下一次連線開始時會清除狀態列。
 
 斷線期間不要輸入 command。為避免 stale input 造成誤執行，`nss` 不會保存並重送任意 raw keyboard input。
 

@@ -55,7 +55,7 @@ command -v nssd
 ~/.local/bin/nssd --version
 ```
 
-正常 interactive session 中，SSH diagnostic 不會直接混入 remote PTY 畫面。transport 斷線時，`nss` 會顯示短暫且保存 cursor 位置的 reconnect 狀態列，下一次連線開始前清除，讓 remote prompt 與 terminal layout 保持可讀。
+正常 interactive session 中，SSH diagnostic 不會直接混入 remote PTY 畫面。transport 斷線時，`nss` 會在目前 prompt 上方顯示短暫且保存 cursor 位置的 reconnect 狀態列，不會讓 terminal scroll，並在下一次連線開始前清除。
 
 如果目前 user 的 `~/.ssh/config` 存在，`nss` 會明確將它傳給 OpenSSH，因此像 `mdev3` 這類 host alias 會使用與 `/usr/bin/ssh mdev3` 相同的設定。
 
