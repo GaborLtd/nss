@@ -179,6 +179,8 @@ nss office-mini
 
 During a normal interactive session, SSH diagnostic output is captured instead of being written directly into the remote PTY view. If the transport disconnects, `nss` renders a short cursor-preserving reconnect status line above the current prompt, without scrolling the terminal, and clears it before the next connection attempt.
 
+If the SSH diagnostic says `stdin is not a terminal; use --no-tty for non-interactive use`, `nss` stops retrying because this is a command or SSH configuration error, not a transient transport failure. Check whether `ProxyCommand`, `RemoteCommand`, or another wrapper is invoking `nss` recursively. The normal interactive invocation remains `nss <ssh-host>`; use `nss --no-tty <ssh-host>` only for intentionally non-interactive use.
+
 `nss` explicitly passes the current user's `~/.ssh/config` to OpenSSH when that file exists, so host aliases such as `mdev3` use the same configuration as `/usr/bin/ssh mdev3`.
 
 ### SSH passphrase prompts

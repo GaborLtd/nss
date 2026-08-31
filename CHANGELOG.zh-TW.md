@@ -4,6 +4,7 @@
 
 ## [Unreleased]
 
+- SSH 回報 `nss` non-TTY 使用錯誤時停止 retry，並提示檢查遞迴啟動 `nss` 的 wrapper 設定。
 - 修正 reconnect 狀態列觸發 terminal scroll，避免 reconnect 後 cursor 與全螢幕程式畫面錯位。
 
 ## [0.2.6] - 2026-08-30

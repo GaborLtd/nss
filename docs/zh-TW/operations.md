@@ -57,6 +57,8 @@ command -v nssd
 
 正常 interactive session 中，SSH diagnostic 不會直接混入 remote PTY 畫面。transport 斷線時，`nss` 會在目前 prompt 上方顯示短暫且保存 cursor 位置的 reconnect 狀態列，不會讓 terminal scroll，並在下一次連線開始前清除。
 
+如果 SSH diagnostic 出現 `stdin is not a terminal; use --no-tty for non-interactive use`，`nss` 會停止 retry，因為這是 command 或 SSH 設定錯誤，不是暫時性的 transport failure。請檢查 `ProxyCommand`、`RemoteCommand` 或其他 wrapper 是否遞迴啟動了 `nss`。一般互動模式仍使用 `nss <ssh-host>`；只有刻意執行非互動工作時才使用 `nss --no-tty <ssh-host>`。
+
 如果目前 user 的 `~/.ssh/config` 存在，`nss` 會明確將它傳給 OpenSSH，因此像 `mdev3` 這類 host alias 會使用與 `/usr/bin/ssh mdev3` 相同的設定。
 
 ### SSH passphrase prompt

@@ -65,6 +65,20 @@ func TestClassifySSHExitCompactsTransportDiagnostic(t *testing.T) {
 	}
 }
 
+func TestClassifySSHExitStopsRetryForNonTTYNSSDiagnostic(t *testing.T) {
+	err := exec.Command("sh", "-c", "exit 1").Run()
+	classified := classifySSHExit(err, "nss: "+nonTTYDiagnostic)
+	if !errors.Is(classified, errNonRetryableSSH) {
+		t.Fatalf("classified error = %v, expected non-retryable SSH error", classified)
+	}
+	if errors.Is(classified, errDisconnected) {
+		t.Fatalf("classified error = %v, should not be retryable transport error", classified)
+	}
+	if !strings.Contains(classified.Error(), "ProxyCommand") {
+		t.Fatalf("classified error = %v, expected SSH configuration guidance", classified)
+	}
+}
+
 func TestReconnectStatusPreservesCursorWithANSI(t *testing.T) {
 	var output bytes.Buffer
 	if err := writeReconnectStatus(&output, "retrying in 1s: ssh transport disconnected", true); err != nil {

@@ -4,6 +4,7 @@ Important changes are recorded here. Versions follow Semantic Versioning.
 
 ## [Unreleased]
 
+- Stop retrying when SSH reports the non-TTY `nss` invocation error, and provide guidance for recursive `nss` wrappers.
 - Avoid scrolling the terminal while rendering reconnect status, preventing cursor and full-screen application display corruption after reconnect.
 
 ## [0.2.6] - 2026-08-30

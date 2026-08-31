@@ -22,9 +22,14 @@ import (
 
 var errDisconnected = errors.New("ssh transport disconnected")
 var errRemoteNSSDNotFound = errors.New("remote nssd command not found")
+var errNonRetryableSSH = errors.New("non-retryable SSH error")
 var errTerminated = errors.New("nss terminated")
 
-const remoteAttachCommand = `PATH="$HOME/.local/bin:$PATH" exec nssd attach`
+const (
+	remoteAttachCommand       = `PATH="$HOME/.local/bin:$PATH" exec nssd attach`
+	nonTTYDiagnostic          = "stdin is not a terminal; use --no-tty for non-interactive use"
+	nonRetryableSSHDiagnostic = "請檢查 SSH 的 ProxyCommand、RemoteCommand 或 wrapper 是否又啟動了 nss"
+)
 
 type clientConfig struct {
 	host           string
@@ -180,7 +185,7 @@ func run(args []string) error {
 		if errors.Is(err, errTerminated) {
 			return nil
 		}
-		if errors.Is(err, errRemoteNSSDNotFound) {
+		if errors.Is(err, errRemoteNSSDNotFound) || errors.Is(err, errNonRetryableSSH) {
 			return err
 		}
 		if first {
@@ -413,10 +418,7 @@ func classifySSHExit(waitErr error, stderr string) error {
 		}
 		return fmt.Errorf("%w: 請先在遠端安裝 nssd，並啟動 `nssd serve`", errRemoteNSSDNotFound)
 	}
-	if detail := compactSSHError(stderr); detail != "" {
-		return fmt.Errorf("%w: %s", errDisconnected, detail)
-	}
-	return errDisconnected
+	return classifySSHDiagnostic(stderr)
 }
 
 func classifySSHDisconnect(waitCh <-chan error, stderr string) error {
@@ -426,11 +428,19 @@ func classifySSHDisconnect(waitCh <-chan error, stderr string) error {
 	case waitErr := <-waitCh:
 		return classifySSHExit(waitErr, stderr)
 	case <-timer.C:
-		if detail := compactSSHError(stderr); detail != "" {
-			return fmt.Errorf("%w: %s", errDisconnected, detail)
-		}
+		return classifySSHDiagnostic(stderr)
+	}
+}
+
+func classifySSHDiagnostic(stderr string) error {
+	detail := compactSSHError(stderr)
+	if detail == "" {
 		return errDisconnected
 	}
+	if strings.Contains(detail, nonTTYDiagnostic) {
+		return fmt.Errorf("%w: %s; %s", errNonRetryableSSH, detail, nonRetryableSSHDiagnostic)
+	}
+	return fmt.Errorf("%w: %s", errDisconnected, detail)
 }
 
 func compactSSHError(stderr string) string {
